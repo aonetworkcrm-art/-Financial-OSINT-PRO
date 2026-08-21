@@ -16,6 +16,8 @@ from engines.credit_score_engine import CreditScoreEngine
 from engines.export_engine import ExportEngine
 from engines.route_account_engine import RouteAccountEngine, SearchField
 from engines.account_validator import AccountValidator, BatchValidation
+from engines.plaid_engine import PlaidEngine
+from engines.card_analyzer import CardAnalyzer, BatchCardAnalysis
 
 # Import user tracker
 try:
@@ -183,11 +185,12 @@ with st.sidebar:
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🔍 Búsqueda Universal",
     "🔐 SSN Lookup",
     "🗺️ Route & Account Finder",
     "🏦 Validador de Cuentas",
+    "💳 Credit Card Analyzer",
     "📊 Credit Score",
     "📥 Exportar",
     "📖 Setup & Ayuda",
@@ -799,9 +802,9 @@ other@example.com,,987-65-4321,456 Oak Ave Dallas TX 75201,Jane Doe,03/22/1985""
             txt_data = RouteAccountEngine.export_txt(batch)
             st.download_button("📝 TXT", txt_data, "route_results.txt", "text/plain", use_container_width=True, key="dl_txt_batch")
 
-# ─── TAB 4: Credit Score ────────────────────────────────────
+# ─── TAB 6: Credit Score ────────────────────────────────────
 
-with tab4:
+with tab6:
     st.markdown("## 📊 Motor de Credit Score")
     st.markdown("Estima el credit score de un perfil basado en sus instituciones financieras y datos de brechas")
 
@@ -1003,6 +1006,200 @@ with tab4:
             except Exception as e:
                 st.error(f"Error: {e}")
 
+# ─── TAB 5: Credit Card Analyzer ───────────────────────────
+
+with tab5:
+    st.markdown("## 💳 Credit Card Analyzer")
+    st.markdown(
+        "Análisis completo de tarjetas de crédito/débito: BIN lookup, red de pago, "
+        "banco emisor, tipo, nivel, país y validación Luhn."
+    )
+
+    card_analyzer = CardAnalyzer()
+    card_plaid = PlaidEngine()
+
+    card_mode = st.radio(
+        "Modo",
+        ["🔍 Analizar Individual", "📁 Lote (textarea)", "📄 Subir CSV"],
+        horizontal=True,
+        key="card_mode",
+    )
+
+    if card_mode.startswith("🔍"):
+        st.markdown("### 🔍 Análisis Individual")
+        card_input = st.text_input(
+            "Número de tarjeta",
+            placeholder="4532015112030367  •  5424003511111111  •  374245455400126",
+            key="card_single",
+        )
+
+        if st.button("⚡ ANALIZAR TARJETA", type="primary", use_container_width=True, key="btn_card_single"):
+            if card_input.strip():
+                with st.spinner("Analizando tarjeta..."):
+                    card_result = card_analyzer.analyze(card_input)
+                    st.session_state["card_last"] = card_result
+
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "card_analyze", {
+                            "card": card_result.card_masked,
+                            "network": card_result.network,
+                            "status": card_result.status,
+                        })
+
+        if "card_last" in st.session_state:
+            c = st.session_state["card_last"]
+            st.markdown("---")
+
+            # Network banner
+            network_colors = {
+                "Visa": "#1A1F71", "Mastercard": "#EB001B", "Amex": "#006FCF",
+                "Discover": "#FF6000", "Diners": "#004080", "JCB": "#0066B2",
+                "UnionPay": "#E21836",
+            }
+            nc = network_colors.get(c.network, '#333')
+            net_name = c.network or 'Desconocida'
+            st.markdown(
+                '<div style="background:' + nc + ';border-radius:12px;padding:20px;margin-bottom:16px;">'
+                '<span style="font-size:2.5rem;">' + c.network_icon + '</span>'
+                '<span style="font-size:1.5rem;font-weight:800;color:#fff;margin-left:12px;">' + net_name + '</span>'
+                '<span style="color:rgba(255,255,255,0.8);margin-left:12px;">' + c.card_masked + '</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Status badge
+            status_colors = {"valid": "#00c853", "invalid": "#e94560", "suspicious": "#ffd700"}
+            sc = status_colors.get(c.status, '#888')
+            status_emojis = {'valid': '✅', 'invalid': '❌', 'suspicious': '⚠️'}
+            status_icon = status_emojis.get(c.status, '?')
+            status_upper = c.status.upper()
+            st.markdown(
+                '<div style="background:' + sc + '22;border:2px solid ' + sc + ';border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">'
+                '<span style="font-size:1.5rem;">' + status_icon + '</span>'
+                '<span style="font-size:1.3rem;font-weight:800;color:' + sc + ';margin-left:8px;">' + status_upper + '</span>'
+                '<span style="color:#888;margin-left:12px;">' + c.status_detail + '</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Info grid
+            ig1, ig2, ig3, ig4 = st.columns(4)
+            ig1.metric("🏦 Banco Emisor", c.issuing_bank or "No identificado")
+            ig2.metric("📋 Tipo", f"{c.card_type} {c.card_level}".strip())
+            ig3.metric("🌍 País", c.bank_country_name or c.bank_country or "")
+            ig4.metric("🎯 Confianza", f"{c.confidence:.0%}")
+
+            # Validation checks
+            st.markdown("### 📋 Checks de Validación")
+            cv1, cv2, cv3 = st.columns(3)
+            cv1.metric("✅ Luhn", "Válido" if c.is_valid_luhn else "Inválido")
+            cv2.metric("📏 Longitud", "OK" if c.is_valid_length else "Inválida")
+            cv3.metric("🔢 BIN", "Identificado" if c.is_valid_bin else "No encontrado")
+
+            if c.checks_passed:
+                with st.expander(f"✅ Checks pasados ({len(c.checks_passed)})"):
+                    for ch in c.checks_passed:
+                        st.markdown(f"- ✅ {ch}")
+            if c.checks_failed:
+                with st.expander(f"❌ Checks fallidos ({len(c.checks_failed)})"):
+                    for ch in c.checks_failed:
+                        st.markdown(f"- ❌ {ch}")
+            if c.warnings:
+                with st.expander(f"⚠️ Advertencias ({len(c.warnings)})"):
+                    for w in c.warnings:
+                        st.markdown(f"- ⚠️ {w}")
+
+    elif card_mode.startswith("📁"):
+        st.markdown("### 📁 Análisis Masivo")
+        st.caption("Un número de tarjeta por línea")
+
+        card_batch_text = st.text_area(
+            "Números de tarjeta",
+            height=200,
+            placeholder="4532015112030367\n5424003511111111\n374245455400126\n6011000990139424",
+            key="card_batch_text",
+        )
+
+        if st.button("⚡ ANALIZAR LOTE", type="primary", use_container_width=True, key="btn_card_batch"):
+            if card_batch_text.strip():
+                cards = CardAnalyzer.parse_batch_input(card_batch_text)
+                with st.spinner(f"Analizando {len(cards)} tarjetas..."):
+                    batch = card_analyzer.analyze_batch(cards)
+                    st.session_state["card_batch"] = batch
+
+        if "card_batch" in st.session_state:
+            batch = st.session_state["card_batch"]
+
+            # Summary
+            st.markdown(f"### 📊 Resumen: {batch.total} tarjetas")
+            sm1, sm2, sm3, sm4 = st.columns(4)
+            sm1.metric("✅ Válidas", batch.valid)
+            sm2.metric("❌ Inválidas", batch.invalid)
+            sm3.metric("📡 Redes", len(batch.networks))
+            sm4.metric("🏦 Bancos", len(batch.banks))
+
+            # Network distribution
+            if batch.networks:
+                st.markdown("**Distribución por Red:**")
+                for net, cnt in sorted(batch.networks.items(), key=lambda x: -x[1]):
+                    bar_len = int(cnt / max(batch.networks.values()) * 30) if batch.networks else 0
+                    st.markdown(f"`{net}` {'█' * bar_len} {cnt}")
+
+            # Table
+            rows = []
+            for r in batch.results:
+                rows.append({
+                    "Tarjeta": r.card_masked,
+                    "Red": f"{r.network_icon} {r.network}",
+                    "Banco": r.issuing_bank or "",
+                    "Tipo": r.card_type,
+                    "Nivel": r.card_level,
+                    "País": r.bank_country,
+                    "Estado": r.status.upper(),
+                    "Luhn": "✅" if r.is_valid_luhn else "❌",
+                    "BIN": "✅" if r.is_valid_bin else "❌",
+                })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+            # Export
+            st.markdown("### 📥 Exportar")
+            cec1, cec2 = st.columns(2)
+            with cec1:
+                csv_d = CardAnalyzer.export_csv(batch)
+                st.download_button("📄 CSV", csv_d, "card_analysis.csv", "text/csv", use_container_width=True)
+            with cec2:
+                json_d = CardAnalyzer.export_json(batch)
+                st.download_button("📋 JSON", json_d, "card_analysis.json", "application/json", use_container_width=True)
+
+    elif card_mode.startswith("📄"):
+        st.markdown("### 📄 Subir CSV")
+        st.caption("Columna con números de tarjeta (auto-detecta)")
+        card_file = st.file_uploader("Sube CSV", type=["csv"], key="card_file")
+        if card_file:
+            try:
+                df = pd.read_csv(card_file)
+                st.dataframe(df.head(5), use_container_width=True)
+
+                all_cards = []
+                for col in df.columns:
+                    for val in df[col].dropna().astype(str):
+                        clean = re.sub(r'[^0-9]', '', val)
+                        if 13 <= len(clean) <= 19 and clean.isdigit():
+                            all_cards.append(clean)
+
+                if all_cards:
+                    st.info(f"📋 {len(all_cards)} números de tarjeta detectados")
+                    if st.button("⚡ ANALIZAR CSV", type="primary", key="btn_card_csv"):
+                        with st.spinner(f"Analizando {len(all_cards)} tarjetas..."):
+                            batch = card_analyzer.analyze_batch(all_cards[:200])
+                            st.session_state["card_batch"] = batch
+                            st.rerun()
+                else:
+                    st.warning("No se detectaron números de tarjeta en el CSV")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
 # ─── TAB 6: Exportar ────────────────────────────────────────
 
 with tab6:
@@ -1032,9 +1229,9 @@ with tab6:
         for f in sorted(os.listdir("output/reports"), reverse=True)[:10]:
             st.markdown(f"📄 {f}")
 
-# ─── TAB 7: Setup & Ayuda ──────────────────────────────────
+# ─── TAB 8: Setup & Ayuda ──────────────────────────────────
 
-with tab7:
+with tab8:
     st.markdown("## 📖 Setup & Ayuda Completa")
     st.markdown("Configura todas las APIs y aprende a usar la herramienta")
 
@@ -1152,16 +1349,112 @@ with tab7:
 
     st.markdown("---")
 
-    # ── Cómo Usar ──
-    st.markdown("### 🎯 Cómo Usar la Herramienta")
+    # ── Guías de Uso por Pestaña ──
+    st.markdown("### 🎯 Guías de Uso Completas")
 
-    with st.expander("🔍 Búsqueda por Dirección"):
+    with st.expander("🗺️ Route & Account Finder — Motor Unificado", expanded=True):
         st.markdown("""
-1. Pestaña **🔍 Búsqueda Universal**
-2. Ingresa: `1206 Laurel Ln Richardson, TX 75080`
-3. Tipo: `auto` o `address`
-4. Click **⚡ BUSCAR**
-5. Ve: emails, passwords, SSN, tarjetas, credit score, instituciones
+**El motor más potente de la herramienta.** Acepta CUALQUIER campo y cruza múltiples fuentes.
+
+### Modos de Uso
+- **🔍 Individual:** Un campo → motor extrae todo lo asociado
+- **📁 Lote:** Múltiples campos en textarea → procesamiento paralelo (hasta 10 hilos)
+- **📄 CSV/Excel:** Subes archivo → auto-detecta columnas y procesa
+
+### Tipos de Campo (detectados automáticamente)
+| Campo | Ejemplo | Qué extrae |
+|-------|---------|------------|
+| 📧 email | user@domain.com | passwords, instituciones, breach data |
+| 📱 phone | +1-212-555-1234 | email, nombre, SSN, bancos |
+| 🔑 ssn | 123-45-6789 | identidad completa, brechas, credit score |
+| 🏠 address | 1206 Laurel Ln TX | residentes, SSN, cuentas, bancos |
+| 👤 name | John Smith | SSN, emails, teléfonos, dirección |
+| 📅 dob | 01/15/1990 | perfils cruzados con todos los campos |
+| 👤 username | @john | emails, breach data |
+| 🌐 domain | bankofamerica.com | emails del dominio, breach data |
+
+### Qué Entrega por Cada Búsqueda
+- ✅ Emails, teléfonos, nombres, direcciones
+- ✅ SSN, fecha de nacimiento
+- ✅ Bancos/instituciones detectadas (15+)
+- ✅ Cuentas, tarjetas de crédito
+- ✅ Passwords expuestos
+- ✅ Credit Score estimado
+- ✅ Fuentes de brechas
+- ✅ Risk Score (0-100)
+- ✅ Exportación CSV/JSON/TXT
+
+### Ejemplo Rápido
+1. Pestaña **🗺️ Route & Account Finder**
+2. Selecciona **🔍 Individual**
+3. Ingresa: `1206 Laurel Ln Richardson, TX 75080`
+4. Tipo: `auto` (auto-detecta)
+5. Click **⚡ EXTRAER DATOS**
+6. Ve: emails, passwords, SSN, bancos, tarjetas, credit score
+""")
+
+    with st.expander("🏦 Validador de Cuentas Bancarias"):
+        st.markdown("""
+**Valida routing numbers, tarjetas y cuentas bancarias** con algoritmos de verificación.
+
+### Qué Valida
+| Tipo | Algoritmo | Qué verifica |
+|------|-----------|-------------|
+| 🔢 Routing Number | Checksum ABA | Formato 9 dígitos + banco conocido |
+| 💳 Tarjeta de Crédito | Luhn + BIN | Número válido + banco emisor |
+| 💼 Cuenta Bancaria | Formato | Longitud, dígitos, patrones |
+| 🔑 SSN | Reglas oficiales | Área (001-899), Grupo, Serial |
+
+### Modos de Uso
+- **🔍 Individual:** Un dato a la vez
+- **📁 Lote:** Múltiples datos en textarea
+- **📄 CSV:** Subir archivo con auto-detección
+
+### Base de Datos
+- 50+ routing numbers de bancos US
+- 60+ BINs de bancos y fintechs
+- Reglas SSN oficiales de la SSA
+
+### Ejemplo Rápido
+1. Pestaña **🏦 Validador de Cuentas**
+2. Selecciona **🔍 Individual**
+3. Ingresa: `021000021` (routing de Chase)
+4. Click **⚡ VALIDAR**
+5. Ve: ✅ Válido, banco: JPMorgan Chase, checksum OK
+""")
+
+    with st.expander("💳 Credit Card Analyzer — Análisis de Tarjetas"):
+        st.markdown("""
+**Motor completo de análisis de tarjetas de crédito/débito.**
+
+### Qué Analiza
+| Campo | Qué Entrega |
+|-------|------------|
+| 🔢 BIN/IIN | Banco emisor (100+ bancos) |
+| 🌐 Red | Visa, Mastercard, Amex, Discover, Diners, JCB, UnionPay |
+| 🏦 Banco | Nombre del banco emisor |
+| 🌍 País | País de emisión (US, MX, ES, JP, CN, etc.) |
+| 📋 Tipo | Crédito, Débito, Prepago |
+| 🏆 Nivel | Classic, Gold, Platinum, Signature, Infinite |
+| ✅ Luhn | Validación numérica |
+| 📏 Longitud | Correcta para la red |
+
+### Modos de Uso
+- **🔍 Individual:** Analizar una tarjeta
+- **📁 Lote:** Analizar múltiples tarjetas
+- **📄 CSV:** Subir archivo con columnas de tarjetas
+
+### Base de Datos
+- 200+ BINs de bancos internacionales
+- 7 redes de pago: Visa, MC, Amex, Discover, Diners, JCB, UnionPay
+- 15+ países de emisión
+
+### Ejemplo Rápido
+1. Pestaña **💳 Credit Card Analyzer**
+2. Selecciona **🔍 Individual**
+3. Ingresa: `4532015112030367`
+4. Click **⚡ ANALIZAR TARJETA**
+5. Ve: 🟦 Visa — Chase — Gold — US — ✅ Válida
 """)
 
     with st.expander("🔐 Búsqueda por SSN"):
@@ -1171,16 +1464,11 @@ with tab7:
 3. Ingresa: `123-45-6789`
 4. Click **⚡ Buscar por SSN**
 5. Ve: nombre, DOB, dirección, teléfono, email, brechas
-""")
 
-    with st.expander("🔄 Reverse Lookup (Nombre → SSN)"):
-        st.markdown("""
-1. Pestaña **🔐 SSN Lookup**
-2. Sub-pestaña **Nombre/Dirección → SSN**
-3. Ingresa: `John Smith` o dirección
-4. Tipo: `name` o `address`
-5. Click **⚡ Buscar SSN**
-6. Ve: SSN asociado (si existe en brechas)
+**Para Reverse Lookup (Nombre → SSN):**
+1. Sub-pestaña **Nombre/Dirección → SSN**
+2. Ingresa nombre o dirección
+3. Click **⚡ Buscar SSN**
 """)
 
     with st.expander("📊 Credit Score"):
@@ -1191,6 +1479,50 @@ with tab7:
 4. Ve: score estimado (300-850) + grade
 
 **Nota:** El score es una estimación basada en las instituciones detectadas.
+""")
+
+    with st.expander("📁 Búsqueda por Lote"):
+        st.markdown("""
+**Procesamiento masivo de consultas:**
+
+1. Ingresa múltiples campos (uno por línea)
+2. Selecciona hilos paralelos (1-10)
+3. Click **⚡ Ejecutar Lote**
+4. Ve: tabla resumen + exportación CSV/JSON
+
+**Soporta:** addresses, emails, phones, SSNs, nombres mixtos
+""")
+
+    st.markdown("---")
+
+    # ── Plaid Setup ──
+    st.markdown("### 🏦 Integración Plaid (Balance y Estado de Cuentas)")
+    st.markdown("""
+**Plaid** permite verificar si una cuenta bancaria está activa y tiene fondos.
+
+### Setup (5 minutos)
+1. Ve a **https://dashboard.plaid.com/signup**
+2. Crea cuenta gratuita (sandbox = 100 requests/mes gratis)
+3. Ve a **Team Settings → Keys**
+4. Copia **Client ID** y **Secret**
+5. En Streamlit Cloud: Settings → Secrets → Agrega:
+```
+PLAID_CLIENT_ID = "tu_client_id"
+PLAID_SECRET = "tu_secret"
+PLAID_ENV = "sandbox"
+```
+
+### Modos
+- **sandbox** (gratis): Datos simulados para testing
+- **development** ($0.30/request): Datos reales limitados
+- **production** ($0.30/request): Datos reales completos
+
+### Qué Verifica
+- ✅ Balance disponible y actual
+- ✅ Estado de la cuenta (activa/inactiva)
+- ✅ Tipo de cuenta (checking/savings/credit)
+- ✅ Routing y account number reales (vía Plaid Auth)
+- ✅ Datos del titular (vía Plaid Identity)
 """)
 
     st.markdown("---")
@@ -1204,11 +1536,12 @@ with tab7:
 | DeHashed | $20/mes | $50/mes |
 | IntelligenceX | $50/mes | $100/mes |
 | Snusbase | $30/mes | $60/mes |
+| Plaid | Gratis (sandbox) | $0.30/request |
 
 **Para empezar:** Solo necesitas LeakCheck Pro ($10/mes)
-**Máximo poder:** Todas las APIs ($110-235/mes)
+**Máximo poder:** Todas las APIs + Plaid ($110-235/mes)
 """)
 
 # Footer
 st.markdown("---")
-st.markdown("<div style='text-align:center;color:#555;'>⚡ Financial OSINT PRO v2.0 — Motor de inteligencia financiera multi-fuente</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center;color:#555;'>⚡ Financial OSINT PRO v3.0 — Motor de inteligencia financiera multi-fuente con Route Finder, Validator y Card Analyzer</div>", unsafe_allow_html=True)
