@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: nexus-intel-landing
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn web.server:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+    plan: free

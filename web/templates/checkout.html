@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💳 Checkout — NEXUS INTEL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #06060a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+        .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 40px; max-width: 520px; width: 100%; }
+        .card h1 { font-size: 1.4rem; color: #fff; margin-bottom: 24px; text-align: center; }
+        .plan-box { background: rgba(233,69,96,0.06); border: 1px solid rgba(233,69,96,0.15); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 28px; }
+        .plan-box .name { font-size: 1.2rem; font-weight: 700; color: #e94560; }
+        .plan-box .price { font-size: 2.5rem; font-weight: 900; color: #fff; margin: 8px 0; }
+        .plan-box .credits { color: #00d4ff; }
+        .pay-btn { display: flex; align-items: center; gap: 16px; padding: 18px 24px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.08); border-radius: 14px; color: #fff; text-decoration: none; font-size: 1rem; font-weight: 600; transition: all 0.3s; cursor: pointer; width: 100%; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+        .pay-btn:hover { border-color: #e94560; background: rgba(233,69,96,0.05); }
+        .pay-btn .icon { font-size: 1.5rem; }
+        .pay-btn .info { flex: 1; text-align: left; }
+        .pay-btn .info small { display: block; color: #888; font-weight: 400; font-size: 0.8rem; margin-top: 2px; }
+        .link { text-align: center; margin-top: 20px; }
+        .link a { color: #888; text-decoration: none; font-size: 0.9rem; }
+        .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+        .flash.success { background: rgba(0,212,255,0.08); color: #00d4ff; border: 1px solid rgba(0,212,255,0.15); }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>💳 Elige tu Método de Pago</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="plan-box">
+        <div class="name">{{ plan.name }}</div>
+        <div class="price">${{ plan.price }}</div>
+        <div class="credits">{{ plan.searches }} búsquedas/mes</div>
+    </div>
+
+    <form method="POST">
+        <button type="submit" name="payment_method" value="paypal" class="pay-btn">
+            <div class="icon">💳</div>
+            <div class="info">PayPal / Tarjeta<small>Visa, Mastercard, AMEX</small></div>
+            <div>→</div>
+        </button>
+        <button type="submit" name="payment_method" value="crypto" class="pay-btn">
+            <div class="icon">🦊</div>
+            <div class="info">Crypto (MetaMask)<small>ETH, USDC, USDT</small></div>
+            <div>→</div>
+        </button>
+        <button type="submit" name="payment_method" value="whatsapp" class="pay-btn">
+            <div class="icon">📱</div>
+            <div class="info">WhatsApp<small>Envía el pago y confirma</small></div>
+            <div>→</div>
+        </button>
+    </form>
+
+    <div class="link"><a href="/">← Volver</a></div>
+</div>
+</body>
+</html>

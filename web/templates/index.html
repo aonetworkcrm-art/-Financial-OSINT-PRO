@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Nexus Intel — Herramienta de Inteligencia Financiera</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #06060a; color: #e0e0e0; line-height: 1.6; }
+        
+        /* ─── Animations ─── */
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes glow { 0%,100% { box-shadow: 0 0 20px rgba(233,69,96,0.3); } 50% { box-shadow: 0 0 40px rgba(233,69,96,0.6); } }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes countUp { from { opacity: 0; } to { opacity: 1; } }
+        
+        .animate { animation: slideUp 0.6s ease-out forwards; }
+        
+        /* ─── Urgency Bar ─── */
+        .urgency-bar {
+            background: linear-gradient(135deg, #e94560, #c23152);
+            color: #fff;
+            text-align: center;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .urgency-bar .pulse { animation: pulse 2s infinite; }
+        
+        /* ─── Navigation ─── */
+        nav {
+            background: rgba(6,6,10,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 44px;
+            z-index: 99;
+        }
+        .logo { font-size: 1.4rem; font-weight: 800; color: #e94560; letter-spacing: -1px; }
+        .logo span { color: #00d4ff; }
+        nav a { color: #888; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        nav a:hover { color: #e94560; }
+        .nav-cta {
+            background: linear-gradient(135deg, #e94560, #c23152);
+            color: #fff !important;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+        
+        /* ─── Hero ─── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 80px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(233,69,96,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 60%, rgba(0,212,255,0.06) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+        .hero-content { position: relative; z-index: 1; max-width: 900px; }
+        .hero-badge {
+            display: inline-block;
+            background: rgba(233,69,96,0.12);
+            color: #e94560;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            border: 1px solid rgba(233,69,96,0.25);
+        }
+        .hero h1 {
+            font-size: clamp(2.8rem, 6vw, 5rem);
+            font-weight: 900;
+            line-height: 1.05;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 0%, #e94560 50%, #00d4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            color: #999;
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+        }
+        .hero-stat .number { font-size: 2.5rem; font-weight: 900; color: #e94560; }
+        .hero-stat .label { font-size: 0.85rem; color: #666; margin-top: 4px; }
+        
+        /* ─── Buttons ─── */
+        .cta-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #e94560, #c23152);
+            color: #fff;
+            padding: 18px 48px;
+            border-radius: 14px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(233,69,96,0.4);
+        }
+        .cta-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(233,69,96,0.6); }
+        .cta-btn-secondary {
+            background: transparent;
+            border: 2px solid rgba(233,69,96,0.4);
+            box-shadow: none;
+        }
+        .cta-btn-secondary:hover { background: rgba(233,69,96,0.08); }
+        
+        /* ─── Sections ─── */
+        section { padding: 100px 20px; max-width: 1200px; margin: 0 auto; }
+        .section-title { text-align: center; margin-bottom: 64px; }
+        .section-title h2 { font-size: 2.5rem; font-weight: 900; color: #fff; margin-bottom: 16px; }
+        .section-title p { color: #888; font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+        .section-full { max-width: 100%; padding: 100px 20px; }
+        
+        /* ─── Pain Points ─── */
+        .pain-section { background: linear-gradient(180deg, #06060a, #0d0d18); }
+        .pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; max-width: 1200px; margin: 0 auto; }
+        .pain-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+        .pain-card:hover { border-color: rgba(233,69,96,0.3); transform: translateY(-4px); }
+        .pain-card .icon { font-size: 2.5rem; margin-bottom: 16px; }
+        .pain-card h3 { color: #e94560; margin-bottom: 12px; font-size: 1.2rem; }
+        .pain-card p { color: #999; font-size: 0.95rem; }
+        
+        /* ─── Capabilities ─── */
+        .cap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .cap-card {
+            background: linear-gradient(135deg, rgba(233,69,96,0.04), rgba(0,212,255,0.03));
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+        .cap-card:hover { border-color: rgba(233,69,96,0.25); }
+        .cap-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .cap-card h3 { color: #fff; margin-bottom: 8px; font-size: 1.05rem; }
+        .cap-card p { color: #888; font-size: 0.9rem; }
+        
+        /* ─── Demo ─── */
+        .demo-section { background: #0a0a12; }
+        .demo-box {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo-header {
+            background: rgba(255,255,255,0.03);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .demo-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .demo-dot.r { background: #e94560; }
+        .demo-dot.y { background: #ffd700; }
+        .demo-dot.g { background: #00c853; }
+        .demo-body { padding: 32px; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.8; }
+        .demo-line { margin-bottom: 8px; }
+        .demo-prompt { color: #00d4ff; }
+        .demo-cmd { color: #fff; }
+        .demo-output { color: #888; }
+        .demo-highlight { color: #e94560; font-weight: 700; }
+        .demo-success { color: #00c853; }
+        
+        /* ─── Results ─── */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 1200px; margin: 0 auto; }
+        .result-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+        }
+        .result-card .big { font-size: 3rem; font-weight: 900; color: #e94560; }
+        .result-card .label { color: #888; font-size: 0.9rem; margin-top: 8px; }
+        
+        /* ─── Pricing ─── */
+        .pricing-section { background: linear-gradient(180deg, #06060a, #0d0d18); }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .price-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            padding: 40px 32px;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .price-card:hover { border-color: rgba(233,69,96,0.3); transform: translateY(-4px); }
+        .price-card.popular {
+            border-color: #e94560;
+            background: linear-gradient(135deg, rgba(233,69,96,0.08), rgba(233,69,96,0.02));
+            animation: glow 3s ease-in-out infinite;
+        }
+        .price-card.popular::before {
+            content: "⭐ MÁS VENDIDO";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #e94560, #c23152);
+            color: #fff;
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            border-radius: 20px 20px 0 0;
+        }
+        .price-card .name { font-size: 1.2rem; font-weight: 700; color: #fff; margin-top: 20px; }
+        .price-card .price { font-size: 3.5rem; font-weight: 900; color: #e94560; margin: 16px 0; }
+        .price-card .price span { font-size: 1rem; color: #888; font-weight: 400; }
+        .price-card .credits { color: #00d4ff; font-size: 1rem; font-weight: 600; margin-bottom: 24px; }
+        .price-card .features { list-style: none; text-align: left; margin-bottom: 32px; }
+        .price-card .features li { padding: 10px 0; color: #aaa; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .price-card .features li::before { content: "✅ "; }
+        .price-card .cta { width: 100%; display: block; text-align: center; padding: 14px; }
+        
+        /* ─── Testimonials ─── */
+        .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 1200px; margin: 0 auto; }
+        .test-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 32px;
+        }
+        .test-card .stars { color: #ffd700; font-size: 1.1rem; margin-bottom: 12px; }
+        .test-card p { color: #aaa; font-style: italic; margin-bottom: 16px; }
+        .test-card .author { color: #e94560; font-weight: 600; }
+        
+        /* ─── FAQ ─── */
+        .faq-list { max-width: 800px; margin: 48px auto 0; }
+        .faq-item {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        .faq-q {
+            padding: 20px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .faq-q:hover { color: #e94560; }
+        .faq-a { padding: 0 24px 20px; color: #888; display: none; }
+        .faq-item.open .faq-a { display: block; }
+        
+        /* ─── Guarantee ─── */
+        .guarantee {
+            max-width: 700px;
+            margin: 48px auto 0;
+            text-align: center;
+            padding: 40px;
+            background: rgba(0,212,255,0.04);
+            border: 1px solid rgba(0,212,255,0.15);
+            border-radius: 16px;
+        }
+        
+        /* ─── Footer ─── */
+        footer {
+            background: #040408;
+            padding: 48px 20px;
+            text-align: center;
+            color: #444;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        footer a { color: #e94560; text-decoration: none; }
+        
+        @media (max-width: 768px) {
+            .hero-stats { gap: 24px; }
+            section { padding: 60px 16px; }
+            nav { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Urgency Bar -->
+<div class="urgency-bar">
+    <span class="pulse">🔥</span> <strong>Oferta de lanzamiento:</strong> Los primeros 20 socios obtienen 30% OFF en el plan Pro por 3 meses
+    <span class="pulse">🔥</span>
+</div>
+
+<!-- Navigation -->
+<nav>
+    <div class="logo">⚡ NEXUS<span>INTEL</span></div>
+    <div style="display:flex;gap:24px;align-items:center;">
+        <a href="#capabilities">Capacidades</a>
+        <a href="#pricing">Precios</a>
+        <a href="#faq">FAQ</a>
+        <a href="#pricing" class="nav-cta">Empezar Ahora</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">🛡️ Plataforma de Inteligencia Financiera #1</div>
+        <h1>Domina la Información.<br>Antes de Que Otros la Encuentren.</h1>
+        <p>Herramienta de inteligencia financiera que en segundos revela el perfil completo de cualquier persona: emails, teléfonos, passwords, credit score, instituciones bancarias y más.</p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+            <a href="#pricing" class="cta-btn">🚀 Empezar Ahora</a>
+            <a href="#demo" class="cta-btn cta-btn-secondary">👁️ Ver Demo</a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="number">15B+</div>
+                <div class="label">Registros Indexados</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">15+</div>
+                <div class="label">Instituciones Detectadas</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">&lt;3s</div>
+                <div class="label">Tiempo de Respuesta</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">99.7%</div>
+                <div class="label">Precisión en Datos</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pain Points -->
+<section class="pain-section section-full">
+    <div class="section-title">
+        <h2>¿Te Sucede Esto?</h2>
+        <p>Los problemas que enfrentas todos los días sin la herramienta correcta</p>
+    </div>
+    <div class="pain-grid">
+        <div class="pain-card">
+            <div class="icon">😤</div>
+            <h3>Búsqueda Manual que Consumen Horas</h3>
+            <p>Investigar un perfil toma horas saltando entre 10+ herramientas. Mientras tanto, la información cambia o desaparece.</p>
+        </div>
+        <div class="pain-card">
+            <div class="icon">🔍</div>
+            <h3>Datos Incompletos y Desactualizados</h3>
+            <p>Las herramientas gratuitas solo muestran si un dato "existe", pero no QUÉ información hay detrás.</p>
+        </div>
+        <div class="pain-card">
+            <div class="icon">💰</div>
+            <h3>Pagas por Cada Búsqueda en Cada Plataforma</h3>
+            <p>Cada herramienta cobra por separado. LeakCheck, DeHashed, IntelligenceX... el costo se acumula rápido.</p>
+        </div>
+        <div class="pain-card">
+            <div class="icon">⏰</div>
+            <h3>Sin Automatización</h3>
+            <p>Cada búsqueda es manual. No hay lotes, no hay exportación masiva, no hay API para integrar.</p>
+        </div>
+        <div class="pain-card">
+            <div class="icon">🎭</div>
+            <h3>No Sabes si los Datos son Confiables</h3>
+            <p>¿Es este el email correcto? ¿Este teléfono sigue activo? No hay forma de verificar sin probar cada fuente.</p>
+        </div>
+        <div class="pain-card">
+            <div class="icon">📊</div>
+            <h3>Sin Visión Completa del Perfil</h3>
+            <p>Tienes fragmentos de datos dispersos. Nunca ves el panorama completo: quién es, dónde vive, qué bancos usa, cuál es su score.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Capabilities -->
+<section id="capabilities">
+    <div class="section-title">
+        <h2>Lo que NEXUS INTEL Puede Hacer</h2>
+        <p>Una sola búsqueda. Datos completos. Resultados en segundos.</p>
+    </div>
+    <div class="cap-grid">
+        <div class="cap-card">
+            <div class="icon">🏠</div>
+            <h3>Búsqueda por Dirección</h3>
+            <p>Ingresa una dirección postal y obtén TODOS los emails, teléfonos, passwords y datos asociados a esa ubicación.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">🔐</div>
+            <h3>SSN → Identidad</h3>
+            <p>Dado un SSN, revela nombre, DOB, dirección, teléfono, email y todas las brechas donde aparece.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">🔄</div>
+            <h3>Nombre → SSN</h3>
+            <p>Búsqueda inversa: dado un nombre y dirección, encuentra el SSN asociado (si existe en brechas).</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">🏦</div>
+            <h3>Detección Bancaria Automática</h3>
+            <p>Detecta automáticamente en qué bancos y fintechs tiene cuenta: US Bank, Venmo, Chase, Schools FCU y más.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">📊</div>
+            <h3>Credit Score Estimado</h3>
+            <p>Estima el credit score (300-850) basado en las instituciones detectadas y el perfil financiero.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">🔑</div>
+            <h3>Passwords y Credenciales</h3>
+            <p>Extrae passwords, tokens y credenciales filtradas de miles de brechas de datos globales.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">📁</div>
+            <h3>Búsqueda por Lote</h3>
+            <p>Procesa 100+ direcciones, emails o SSNs simultáneamente. Exporta todo en CSV/JSON.</p>
+        </div>
+        <div class="cap-card">
+            <div class="icon">📥</div>
+            <h3>Exportación Profesional</h3>
+            <p>Descarga resultados en CSV, JSON o TXT. Listo para Excel, bases de datos o integración.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Demo -->
+<section class="demo-section section-full" id="demo">
+    <div class="section-title">
+        <h2>Mira la Herramienta en Acción</h2>
+        <p>Así de simple es obtener un perfil completo</p>
+    </div>
+    <div class="demo-box">
+        <div class="demo-header">
+            <div class="demo-dot r"></div>
+            <div class="demo-dot y"></div>
+            <div class="demo-dot g"></div>
+            <span style="color:#888;font-size:0.85rem;margin-left:12px;">NEXUS INTEL — Panel de Búsqueda</span>
+        </div>
+        <div class="demo-body">
+            <div class="demo-line"><span class="demo-prompt">▸ </span><span class="demo-cmd">Entrada: </span><span class="demo-highlight">1206 Laurel Ln Richardson, TX 75080</span></div>
+            <div class="demo-line"><span class="demo-output">⚡ Motor multi-fuente procesando...</span></div>
+            <div class="demo-line"><span class="demo-output">🔍 LeakCheck Pro: 12 registros encontrados</span></div>
+            <div class="demo-line"><span class="demo-output">🔍 XposedOrNot: 3 registros adicionales</span></div>
+            <div class="demo-line"><span class="demo-output">🏦 Institution Matcher: 4 instituciones detectadas</span></div>
+            <div class="demo-line"><span class="demo-output">📊 Credit Score Engine: estimación calculada</span></div>
+            <div class="demo-line">&nbsp;</div>
+            <div class="demo-line"><span class="demo-success">✅ PERFIL COMPLETO ENCONTRADO</span></div>
+            <div class="demo-line">&nbsp;</div>
+            <div class="demo-line"><span class="demo-highlight">👤 Nombre:</span> <span class="demo-cmd">John Michael Smith</span></div>
+            <div class="demo-line"><span class="demo-highlight">🔑 SSN:</span> <span class="demo-cmd">***-**-6789</span></div>
+            <div class="demo-line"><span class="demo-highlight">📅 DOB:</span> <span class="demo-cmd">03/15/1987</span></div>
+            <div class="demo-line"><span class="demo-highlight">📧 Emails:</span></div>
+            <div class="demo-line"><span class="demo-cmd">  → john.smith@gmail.com</span> <span class="demo-success">🏦 US Bank ✓ · Venmo ✓</span></div>
+            <div class="demo-line"><span class="demo-cmd">  → jsmith@yahoo.com</span> <span class="demo-success">🏦 Schools FCU ✓</span></div>
+            <div class="demo-line"><span class="demo-highlight">📱 Teléfonos:</span></div>
+            <div class="demo-line"><span class="demo-cmd">  → +1-214-555-1234</span> <span class="demo-success">🏦 Chase ✓</span></div>
+            <div class="demo-line"><span class="demo-highlight">🔑 Passwords:</span> <span class="demo-cmd">3 expuestos</span></div>
+            <div class="demo-line"><span class="demo-highlight">💳 Tarjetas:</span> <span class="demo-cmd">****-****-****-1234 (Visa, US Bank)</span></div>
+            <div class="demo-line"><span class="demo-highlight">📊 Credit Score:</span> <span class="demo-success">~720 (Good)</span></div>
+            <div class="demo-line"><span class="demo-highlight">📋 Brechas:</span> <span class="demo-cmd">5 fuentes de datos</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- Results -->
+<section>
+    <div class="section-title">
+        <h2>Resultados que Hablan por Sí Solos</h2>
+    </div>
+    <div class="results-grid">
+        <div class="result-card">
+            <div class="big">15B+</div>
+            <div class="label">Registros de brechas indexados</div>
+        </div>
+        <div class="result-card">
+            <div class="big">15+</div>
+            <div class="label">Instituciones financieras detectadas</div>
+        </div>
+        <div class="result-card">
+            <div class="big">&lt;3s</div>
+            <div class="label">Tiempo promedio de búsqueda</div>
+        </div>
+        <div class="result-card">
+            <div class="big">99.7%</div>
+            <div class="label">Precisión en geolocalización</div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing-section section-full" id="pricing">
+    <div class="section-title">
+        <h2>Elige Tu Plan</h2>
+        <p>Acceso inmediato con tu token de API. Sin contratos. Cancela cuando quieras.</p>
+    </div>
+    <div class="pricing-grid">
+        <div class="price-card">
+            <div class="name">Starter</div>
+            <div class="price">$29<span>/mes</span></div>
+            <div class="credits">50 búsquedas/mes</div>
+            <ul class="features">
+                <li>Búsqueda por dirección</li>
+                <li>Búsqueda por email</li>
+                <li>Búsqueda por teléfono</li>
+                <li>Detección de 15+ bancos</li>
+                <li>Credit score estimado</li>
+                <li>Exportación CSV</li>
+                <li>Soporte por email</li>
+            </ul>
+            <a href="#contact" class="cta-btn cta-btn-secondary cta">Empezar</a>
+        </div>
+        <div class="price-card popular">
+            <div class="name">Professional</div>
+            <div class="price">$79<span>/mes</span></div>
+            <div class="credits">200 búsquedas/mes</div>
+            <ul class="features">
+                <li>Todo del plan Starter</li>
+                <li>SSN → Identidad completa</li>
+                <li>Nombre → SSN (reverse lookup)</li>
+                <li>Búsqueda por lote (50+)</li>
+                <li>Passwords y credenciales</li>
+                <li>Exportación CSV/JSON/TXT</li>
+                <li>API Access</li>
+                <li>Soporte prioritario</li>
+            </ul>
+            <a href="#contact" class="cta-btn cta">Empezar Ahora</a>
+        </div>
+        <div class="price-card">
+            <div class="name">Enterprise</div>
+            <div class="price">$199<span>/mes</span></div>
+            <div class="credits">1,000 búsquedas/mes</div>
+            <ul class="features">
+                <li>Todo del plan Professional</li>
+                <li>Lotes de 500+ objetivos</li>
+                <li>Multi-fuente premium</li>
+                <li>Datos de dark web</li>
+                <li>Integración personalizada</li>
+                <li>Soporte 24/7 dedicado</li>
+                <li>SLA garantizado</li>
+            </ul>
+            <a href="#contact" class="cta-btn cta-btn-secondary cta">Contactar</a>
+        </div>
+    </div>
+</section>
+
+<!-- Guarantee -->
+<section>
+    <div class="guarantee">
+        <div style="font-size:3rem;margin-bottom:16px;">🛡️</div>
+        <h2 style="color:#fff;margin-bottom:16px;">Garantía de Satisfacción 30 Días</h2>
+        <p style="color:#888;max-width:500px;margin:0 auto;">
+            Si no estás satisfecho con la herramienta en los primeros 30 días, te devolvemos tu dinero completo. Sin preguntas. Sin complicaciones. Confiamos en nuestro servicio.
+        </p>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+    <div class="section-title">
+        <h2>Preguntas Frecuentes</h2>
+    </div>
+    <div class="faq-list">
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Cómo accedo a la herramienta? <span>▼</span></div>
+            <div class="faq-a">Después de tu compra, recibes un token de acceso único (API Key). Lo ingresas en el panel de la herramienta y listo. Accedes desde cualquier navegador, en cualquier momento.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Qué tan precisos son los datos? <span>▼</span></div>
+            <div class="faq-a">Nuestros datos provienen de más de 15 mil millones de registros de brechas de datos verificadas. La precisión supera el 99.7% para geolocalización y detección de instituciones.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Puedo usar la herramienta para investigar a terceros? <span>▼</span></div>
+            <div class="faq-a">Nuestra herramienta está diseñada para auditorías de seguridad autorizadas, protección de identidad propia, y investigación forense con autorización. El uso irresponsable no está permitido.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Qué instituciones financieras detecta? <span>▼</span></div>
+            <div class="faq-a">Detectamos automáticamente más de 15 instituciones: US Bank, Chase, Wells Fargo, Bank of America, Citibank, Capital One, Venmo, PayPal, Cash App, Schools Federal CU, Navy Federal y más.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Puedo cancelar en cualquier momento? <span>▼</span></div>
+            <div class="faq-a">Sí. No hay contratos ni compromisos a largo plazo. Cancelas cuando quieras y dejas de pagar. Tu acceso se mantiene hasta finalizar el mes pagado.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Cómo funcionan los búsquedas por lote? <span>▼</span></div>
+            <div class="faq-a">Pegas una lista de direcciones, emails o SSNs (uno por línea) y la herramienta los procesa todos automáticamente. Puedes exportar los resultados completos en CSV o JSON.</div>
+        </div>
+    </div>
+</section>
+
+<!-- Final CTA -->
+<section style="text-align:center;padding:80px 20px;">
+    <h2 style="font-size:2.5rem;color:#fff;margin-bottom:16px;">¿Listo para Tener el Poder?</h2>
+    <p style="color:#888;margin-bottom:40px;font-size:1.1rem;">Únete a los profesionales que ya usan NEXUS INTEL</p>
+    <a href="#pricing" class="cta-btn" style="font-size:1.2rem;padding:20px 56px;">🚀 Empezar Ahora</a>
+    <p style="color:#555;margin-top:16px;font-size:0.9rem;">Garantía 30 días • Soporte 24/7 • Acceso inmediato</p>
+</section>
+
+<!-- Footer -->
+<footer>
+    <p style="margin-bottom:8px;"><strong style="color:#e94560;">NEXUS INTEL</strong> — Herramienta de Inteligencia Financiera</p>
+    <p>© 2025 — Todos los derechos reservados</p>
+    <p style="margin-top:16px;font-size:0.85rem;">Uso exclusivo para auditorías de seguridad autorizadas</p>
+</footer>
+
+</body>
+</html>

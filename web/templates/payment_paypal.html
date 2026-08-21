@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💳 Pago PayPal — NEXUS INTEL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #06060a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+        .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 40px; max-width: 500px; width: 100%; text-align: center; }
+        .card h1 { font-size: 1.4rem; color: #fff; margin-bottom: 24px; }
+        .order-box { background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.12); border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: left; }
+        .order-box .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .order-box .row:last-child { border: none; }
+        .order-box .label { color: #888; }
+        .order-box .value { color: #fff; font-weight: 600; }
+        .pay-btn { display: inline-block; background: linear-gradient(135deg, #0070ba, #003087); color: #fff; padding: 16px 40px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
+        .pay-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,112,186,0.4); }
+        .confirm-btn { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #00d4ff, #0099cc); color: #fff; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 16px; font-family: 'Inter', sans-serif; }
+        .note { color: #888; font-size: 0.85rem; margin-top: 16px; }
+        .link { text-align: center; margin-top: 20px; }
+        .link a { color: #888; text-decoration: none; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>💳 Pago con PayPal</h1>
+    <div class="order-box">
+        <div class="row"><span class="label">Orden</span><span class="value">{{ order_id[:16] }}...</span></div>
+        <div class="row"><span class="label">Plan</span><span class="value">{{ order.plan_name }}</span></div>
+        <div class="row"><span class="label">Total</span><span class="value" style="color:#e94560;font-size:1.2rem;">${{ order.price }} USD</span></div>
+    </div>
+    <a href="{{ paypal_link }}" target="_blank" class="pay-btn">💳 Pagar con PayPal</a>
+    <p class="note">Serás redirigido a PayPal para completar el pago</p>
+    <form method="POST" action="/confirm/{{ order_id }}">
+        <button type="submit" class="confirm-btn">✅ Ya Realicé el Pago</button>
+    </form>
+    <p class="note">Tu token de acceso se generará en menos de 24 horas</p>
+    <div class="link"><a href="/">← Volver</a></div>
+</div>
+</body>
+</html>

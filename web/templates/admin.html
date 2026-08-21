@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — NEXUS INTEL</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; }
+
+        .navbar {
+            background: rgba(10,10,30,0.95);
+            border-bottom: 1px solid rgba(255,170,0,0.3);
+            padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .navbar .logo { font-size: 1.3rem; font-weight: bold; color: #ffaa00; }
+        .navbar .logo span { color: #fff; }
+        .navbar a { color: #aaa; text-decoration: none; margin-left: 1.5rem; transition: 0.3s; }
+        .navbar a:hover { color: #ffaa00; }
+
+        .container { max-width: 1100px; margin: 2rem auto; padding: 0 2rem; }
+
+        h1 { color: #ffaa00; margin-bottom: 1.5rem; }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,170,0,0.2);
+            border-radius: 12px; padding: 1.5rem; text-align: center;
+        }
+        .stat-card .number { font-size: 2rem; font-weight: bold; color: #ffaa00; }
+        .stat-card .label { color: #888; font-size: 0.85rem; margin-top: 0.3rem; }
+
+        .section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .section h2 { color: #ffaa00; margin-bottom: 1rem; font-size: 1.2rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 0.7rem; color: #888; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; }
+        td { padding: 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+
+        .status-pending { color: #ffaa00; font-weight: bold; }
+        .status-approved { color: #00ff88; font-weight: bold; }
+        .status-exhausted { color: #ff4444; font-weight: bold; }
+
+        .btn {
+            display: inline-block; padding: 0.5rem 1rem; border-radius: 6px;
+            text-decoration: none; font-weight: bold; transition: 0.3s; cursor: pointer;
+            border: none; font-size: 0.85rem;
+        }
+        .btn-approve { background: #00ff88; color: #000; }
+        .btn-approve:hover { background: #00cc6a; }
+        .btn-reject { background: #ff4444; color: #fff; }
+        .btn-reject:hover { background: #cc2222; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+        .token-display {
+            font-family: monospace; color: #00ff88; background: rgba(0,255,136,0.1);
+            padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem;
+        }
+
+        .flash-messages { margin-bottom: 1rem; }
+        .flash { padding: 0.8rem 1.2rem; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .flash.success { background: rgba(0,255,136,0.15); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 0.5rem; }
+            table { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">NEXUS <span>INTEL — Admin</span></div>
+        <div>
+            <a href="/panel">Panel Usuario</a>
+            <a href="/">Landing</a>
+            <a href="/logout">Salir</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for cat, msg in messages %}
+            <div class="flash {{ cat }}">{{ msg }}</div>
+            {% endfor %}
+            {% endwith %}
+        </div>
+
+        <h1>👑 Panel de Administración</h1>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="number">{{ stats.total_users }}</div>
+                <div class="label">Usuarios</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ stats.total_orders }}</div>
+                <div class="label">Órdenes Totales</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" style="color: {% if stats.pending_orders > 0 %}#ffaa00{% else %}#00ff88{% endif %}">{{ stats.pending_orders }}</div>
+                <div class="label">Pendientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" style="color: #00ff88;">${{ "%.2f"|format(stats.total_revenue) }}</div>
+                <div class="label">Ingresos</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ stats.total_searches }}</div>
+                <div class="label">Búsquedas Realizadas</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Órdenes Pendientes</h2>
+            {% if pending_orders %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Orden</th>
+                        <th>Usuario</th>
+                        <th>Plan</th>
+                        <th>Precio</th>
+                        <th>Método</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in pending_orders %}
+                    <tr>
+                        <td><code>{{ order.order_id }}</code></td>
+                        <td>{{ order.username or 'N/A' }}<br><small style="color:#888">{{ order.email or '' }}</small></td>
+                        <td>{{ order.plan|upper }}</td>
+                        <td style="color:#00ff88;">${{ order.price }}</td>
+                        <td>{{ order.payment_method or 'N/A' }}</td>
+                        <td>{{ order.created_at[:10] if order.created_at else '' }}</td>
+                        <td>
+                            <button class="btn btn-approve" onclick="approveOrder('{{ order.order_id }}')">✅ Aprobar</button>
+                            <button class="btn btn-reject" onclick="rejectOrder('{{ order.order_id }}')">❌</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: #888; text-align: center; padding: 2rem;">No hay órdenes pendientes</p>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2>📊 Todas las Órdenes</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Orden</th>
+                        <th>Usuario</th>
+                        <th>Plan</th>
+                        <th>Precio</th>
+                        <th>Estado</th>
+                        <th>API Token</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in all_orders %}
+                    <tr>
+                        <td><code>{{ order.order_id }}</code></td>
+                        <td>{{ order.username or 'N/A' }}</td>
+                        <td>{{ order.plan|upper }}</td>
+                        <td>${{ order.price }}</td>
+                        <td class="status-{{ order.status }}">{{ order.status|upper }}</td>
+                        <td>
+                            {% if order.api_token %}
+                                <span class="token-display">{{ order.api_token }}</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ order.created_at[:10] if order.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>👥 Usuarios Registrados</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Registro</th>
+                        <th>Último Login</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in all_users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.role|upper }}</td>
+                        <td>{{ user.created_at[:10] if user.created_at else '' }}</td>
+                        <td>{{ user.last_login[:16] if user.last_login else 'Nunca' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin: 2rem 0;">
+            <a href="/" class="btn btn-secondary">🏠 Landing Page</a>
+        </div>
+    </div>
+
+    <script>
+    async function approveOrder(orderId) {
+        const resp = await fetch(`/admin/approve/${orderId}`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            alert(`✅ Orden aprobada!\n\nAPI Token: ${data.token}\n\nCópialo y envíalo al cliente.`);
+            location.reload();
+        } else {
+            alert('Error al aprobar');
+        }
+    }
+
+    async function rejectOrder(orderId) {
+        if (confirm('¿Rechazar esta orden?')) {
+            // TODO: implement reject endpoint
+            alert('Orden rechazada (implementar endpoint)');
+        }
+    }
+    </script>
+</body>
+</html>

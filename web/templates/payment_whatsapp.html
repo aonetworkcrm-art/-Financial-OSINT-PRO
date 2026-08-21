@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago por WhatsApp — NEXUS INTEL</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh;
+               display: flex; align-items: center; justify-content: center; }
+        .card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(37,211,102,0.3);
+            border-radius: 16px; padding: 2.5rem; max-width: 500px; width: 90%; text-align: center;
+        }
+        .icon { font-size: 4rem; margin-bottom: 1rem; }
+        h1 { color: #25D366; margin-bottom: 0.5rem; font-size: 1.6rem; }
+        .order-id { font-family: monospace; color: #ffaa00; font-size: 0.9rem; margin: 0.5rem 0; }
+        .plan-info { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+        .plan-info .name { font-size: 1.3rem; color: #fff; font-weight: bold; }
+        .plan-info .price { font-size: 2rem; color: #00ff88; font-weight: bold; }
+        .plan-info .searches { color: #888; }
+        .instructions { text-align: left; margin: 1.5rem 0; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; }
+        .instructions ol { padding-left: 1.2rem; }
+        .instructions li { margin-bottom: 0.5rem; color: #aaa; font-size: 0.9rem; }
+        .instructions strong { color: #25D366; }
+        .btn {
+            display: inline-block; padding: 1rem 2rem; border-radius: 12px;
+            text-decoration: none; font-weight: bold; font-size: 1.1rem; transition: 0.3s;
+            margin-top: 1rem;
+        }
+        .btn-whatsapp { background: #25D366; color: #fff; }
+        .btn-whatsapp:hover { background: #1da851; transform: translateY(-2px); }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); font-size: 0.9rem; padding: 0.7rem 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">📱</div>
+        <h1>Pago por WhatsApp</h1>
+        <div class="order-id">Orden: {{ order_id }}</div>
+
+        <div class="plan-info">
+            <div class="name">Plan {{ order.plan_name }}</div>
+            <div class="price">${{ order.price }}</div>
+            <div class="searches">{{ order.searches }} búsquedas incluidas</div>
+        </div>
+
+        <div class="instructions">
+            <ol>
+                <li>Haz clic en <strong>"Enviar por WhatsApp"</strong></li>
+                <li>Envía el mensaje con los datos de tu orden</li>
+                <li>Efectúa el pago por el monto indicado</li>
+                <li>Recibirás tu <strong>API Key</strong> en menos de 24h</li>
+                <li>Actívala en la herramienta y empieza a usar</li>
+            </ol>
+        </div>
+
+        <a href="{{ wa_link }}" target="_blank" class="btn btn-whatsapp">💬 Enviar por WhatsApp</a>
+
+        <div style="margin-top: 1.5rem;">
+            <form method="POST" action="/confirm/{{ order_id }}" style="display: inline;">
+                <button type="submit" class="btn btn-secondary">✅ Ya pagué — Reportar</button>
+            </form>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <a href="/panel" style="color: #888; text-decoration: none; font-size: 0.85rem;">Volver al panel</a>
+        </div>
+    </div>
+</body>
+</html>

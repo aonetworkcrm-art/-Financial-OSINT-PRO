@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.json
+!package.json
+.env
+.venv/
+venv/
+*.log
+user_data/
+output/reports/
