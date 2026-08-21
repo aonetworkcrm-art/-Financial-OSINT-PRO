@@ -273,10 +273,27 @@ class CardAnalyzer:
         result.network = self._detect_network(clean)
         result.network_icon = self._network_icon(result.network)
         
-        # 2. BIN lookup (first 6 digits)
+        # 2. BIN lookup (first 6 digits) - Enhanced database first
         if len(clean) >= 6:
             bin6 = clean[:6]
-            if bin6 in BIN_DB:
+            
+            # Try enhanced database first (410+ BINs)
+            try:
+                from engines.enhanced_bins import get_enhanced_bin, ENHANCED_COUNTRIES
+                enhanced = get_enhanced_bin(bin6)
+                if enhanced:
+                    result.issuing_bank = enhanced.get("bank", "")
+                    result.card_type = enhanced.get("type", "")
+                    result.card_level = enhanced.get("level", "")
+                    result.bank_country = enhanced.get("country", "")
+                    result.bank_country_name = ENHANCED_COUNTRIES.get(result.bank_country, result.bank_country)
+                    result.is_valid_bin = True
+                    result.checks_passed.append(f"BIN {bin6} identificado (enhanced): {result.issuing_bank}")
+            except ImportError:
+                pass
+            
+            # Fallback to local BIN_DB
+            if not result.is_valid_bin and bin6 in BIN_DB:
                 info = BIN_DB[bin6]
                 result.issuing_bank = info["bank"]
                 result.card_type = info["type"]
@@ -285,10 +302,10 @@ class CardAnalyzer:
                 result.bank_country_name = COUNTRY_NAMES.get(info["country"], info["country"])
                 result.is_valid_bin = True
                 result.checks_passed.append(f"BIN {bin6} identificado: {info['bank']}")
-            else:
-                # Try first 8 digits
+            
+            # Try first 8 digits if still not found
+            if not result.is_valid_bin:
                 bin8 = clean[:8]
-                found = False
                 for prefix, info in BIN_DB.items():
                     if bin8.startswith(prefix):
                         result.issuing_bank = info["bank"]
@@ -297,10 +314,10 @@ class CardAnalyzer:
                         result.bank_country = info["country"]
                         result.bank_country_name = COUNTRY_NAMES.get(info["country"], info["country"])
                         result.is_valid_bin = True
-                        found = True
                         break
-                if not found:
-                    result.warnings.append("BIN no encontrado en base de datos local")
+                
+                if not result.is_valid_bin:
+                    result.warnings.append("BIN no encontrado en base de datos")
         
         # 3. Length validation
         valid_lengths = CARD_LENGTHS.get(result.network, [16])

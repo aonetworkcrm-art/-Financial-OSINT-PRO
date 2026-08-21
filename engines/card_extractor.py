@@ -479,10 +479,26 @@ class CardExtractor:
         card.network = self._detect_network(clean)
         card.network_icon = self._network_icon(card.network)
 
-        # BIN lookup
+        # BIN lookup - Enhanced database first
         if len(clean) >= 6:
             bin6 = clean[:6]
-            if bin6 in BIN_DB:
+            
+            # Try enhanced database first (410+ BINs)
+            try:
+                from engines.enhanced_bins import get_enhanced_bin, ENHANCED_COUNTRIES
+                enhanced = get_enhanced_bin(bin6)
+                if enhanced:
+                    card.issuing_bank = enhanced.get("bank", "")
+                    card.card_type = enhanced.get("type", "")
+                    card.card_level = enhanced.get("level", "")
+                    card.bank_country = enhanced.get("country", "")
+                    card.bank_country_name = ENHANCED_COUNTRIES.get(card.bank_country, card.bank_country)
+                    card.confidence = 0.95
+            except ImportError:
+                pass
+            
+            # Fallback to local BIN_DB
+            if not card.issuing_bank and bin6 in BIN_DB:
                 info = BIN_DB[bin6]
                 card.issuing_bank = info["bank"]
                 card.card_type = info["type"]
@@ -490,7 +506,8 @@ class CardExtractor:
                 card.bank_country = info["country"]
                 card.bank_country_name = COUNTRY_NAMES.get(info["country"], info["country"])
                 card.confidence = 0.95
-            else:
+            
+            if not card.issuing_bank:
                 card.confidence = 0.6
 
         # Luhn

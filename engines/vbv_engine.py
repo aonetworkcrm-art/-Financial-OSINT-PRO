@@ -39,6 +39,17 @@ from dataclasses import dataclass, field, asdict
 # - Amex: https://www.americanexpress.com/us/security/3d-secure/
 # ═══════════════════════════════════════════════════════════════
 
+# Load enhanced VBV database from Super CC (410+ BINs)
+import os
+import json as _json
+_VBV_ENHANCED_PATH = os.path.join(os.path.dirname(__file__), "enhanced_vbv_db.json")
+_VBV_ENHANCED_DB = {}
+try:
+    with open(_VBV_ENHANCED_PATH, "r") as _f:
+        _VBV_ENHANCED_DB = _json.load(_f)
+except (FileNotFoundError, _json.JSONDecodeError):
+    pass
+
 # BINs que generalmente son NON-VBV (débito, prepaid, ciertos bancos)
 NON_VBV_BINS = {
     # ─── DEBIT CARDS (generalmente NON-VBV) ─────────────────────
@@ -207,10 +218,28 @@ class VBVEngine:
             issuing_bank=issuing_bank,
         )
         
-        # Method 1: BIN Database Lookup
+        # Method 1: Enhanced VBV Database (410+ BINs from Super CC)
         if len(clean) >= 6:
             bin6 = clean[:6]
-            if bin6 in NON_VBV_BINS:
+            
+            # Try enhanced database first
+            if bin6 in _VBV_ENHANCED_DB:
+                info = _VBV_ENHANCED_DB[bin6]
+                result.is_vbv = info["vbv"]
+                result.reason = info["reason"]
+                result.detection_method = "enhanced_bin_database"
+                result.confidence = 0.85
+                
+                if info["vbv"] is True:
+                    result.vbv_status = "VBV_ENROLLED"
+                elif info["vbv"] is False:
+                    result.vbv_status = "NON_VBV"
+                else:
+                    result.vbv_status = "UNKNOWN"
+                    result.confidence = 0.4
+            
+            # Fallback to local NON_VBV_BINS
+            elif bin6 in NON_VBV_BINS:
                 info = NON_VBV_BINS[bin6]
                 result.is_vbv = info["vbv"]
                 result.reason = info["reason"]
