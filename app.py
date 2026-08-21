@@ -18,6 +18,7 @@ from engines.route_account_engine import RouteAccountEngine, SearchField
 from engines.account_validator import AccountValidator, BatchValidation
 from engines.plaid_engine import PlaidEngine
 from engines.card_analyzer import CardAnalyzer, BatchCardAnalysis
+from engines.card_extractor import CardExtractor, SearchField as CardSearchField, BatchCardSearch
 
 # Import user tracker
 try:
@@ -185,12 +186,13 @@ with st.sidebar:
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🔍 Búsqueda Universal",
     "🔐 SSN Lookup",
     "🗺️ Route & Account Finder",
     "🏦 Validador de Cuentas",
-    "💳 Credit Card Analyzer",
+    "💳 Credit Card Extractor",
+    "🔎 Credit Card Analyzer",
     "📊 Credit Score",
     "📥 Exportar",
     "📖 Setup & Ayuda",
@@ -802,9 +804,9 @@ other@example.com,,987-65-4321,456 Oak Ave Dallas TX 75201,Jane Doe,03/22/1985""
             txt_data = RouteAccountEngine.export_txt(batch)
             st.download_button("📝 TXT", txt_data, "route_results.txt", "text/plain", use_container_width=True, key="dl_txt_batch")
 
-# ─── TAB 6: Credit Score ────────────────────────────────────
+# ─── TAB 7: Credit Score ────────────────────────────────────
 
-with tab6:
+with tab7:
     st.markdown("## 📊 Motor de Credit Score")
     st.markdown("Estima el credit score de un perfil basado en sus instituciones financieras y datos de brechas")
 
@@ -1006,10 +1008,288 @@ with tab4:
             except Exception as e:
                 st.error(f"Error: {e}")
 
-# ─── TAB 5: Credit Card Analyzer ───────────────────────────
+# ─── TAB 5: Credit Card Extractor ──────────────────────────
 
 with tab5:
-    st.markdown("## 💳 Credit Card Analyzer")
+    st.markdown("## 💳 Credit Card Extractor")
+    st.markdown(
+        "Motor que **extrae TODAS las credit cards** asociadas a una identidad desde brechas de datos. "
+        "Ingresa un email, teléfono, SSN, dirección o nombre y encuentra las tarjetas vinculadas."
+    )
+
+    card_ext = CardExtractor(
+        leakcheck_key=st.session_state.get("lc_key", os.environ.get("LEAKCHECK_API_KEY", "")),
+        dehashed_key=st.session_state.get("dh_key"),
+        intelx_key=st.session_state.get("ix_key"),
+    )
+
+    ext_mode = st.radio(
+        "Modo de extracción",
+        ["🔍 Individual (un campo)", "📁 Lote (textarea)", "📄 Subir CSV"],
+        horizontal=True,
+        key="ext_mode",
+    )
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 1: Individual
+    # ════════════════════════════════════════════════════════════
+    if ext_mode.startswith("🔍"):
+        st.markdown("### 🔍 Extracción Individual")
+        st.caption("Ingresa un campo y el motor busca TODAS las tarjetas asociadas en brechas")
+
+        ec1, ec2 = st.columns([5, 1])
+        with ec1:
+            ext_input = st.text_input(
+                "Campo de búsqueda",
+                placeholder="user@email.com  •  +1-212-555-1234  •  123-45-6789  •  1206 Laurel Ln, TX 75080  •  John Smith",
+                key="ext_single",
+            )
+        with ec2:
+            ext_type = st.selectbox(
+                "Tipo",
+                ["auto", "email", "phone", "ssn", "address", "name"],
+                key="ext_single_type",
+            )
+
+        if st.button("⚡ EXTRAER TARJETAS", type="primary", use_container_width=True, key="btn_ext_single"):
+            if ext_input.strip():
+                field = CardSearchField(
+                    field_type=ext_type if ext_type != "auto" else CardExtractor._detect_type(ext_input),
+                    value=ext_input.strip(),
+                )
+                with st.spinner(f"⚡ Buscando tarjetas en brechas para: {field.field_type}..."):
+                    result = card_ext.search_single(field)
+                    st.session_state["ext_last"] = result
+
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "card_extract", {
+                            "input": ext_input[:100],
+                            "type": field.field_type,
+                            "cards": result.total_cards(),
+                        })
+
+        if "ext_last" in st.session_state:
+            r = st.session_state["ext_last"]
+            st.markdown("---")
+
+            # Summary metrics
+            sm1, sm2, sm3, sm4 = st.columns(4)
+            sm1.metric("💳 Tarjetas", r.total_cards())
+            sm2.metric("📧 Emails", len(r.emails))
+            sm3.metric("👤 Nombres", len(r.names))
+            sm4.metric("📋 Brechas", len(r.breach_sources))
+
+            if r.cards_found:
+                st.markdown(f"### 💳 {len(r.cards_found)} Tarjetas Encontradas")
+
+                for i, card in enumerate(r.cards_found, 1):
+                    # Card banner
+                    net_colors = {'Visa': '#1A1F71', 'Mastercard': '#EB001B', 'Amex': '#006FCF', 'Discover': '#FF6000'}
+                    nc = net_colors.get(card.network, '#333')
+                    st.markdown(
+                        '<div style="background:' + nc + ';border-radius:10px;padding:16px;margin-bottom:12px;">'
+                        '<span style="font-size:1.8rem;">' + card.network_icon + '</span>'
+                        '<span style="font-size:1.2rem;font-weight:800;color:#fff;margin-left:10px;">' + card.card_masked + '</span>'
+                        '<span style="color:rgba(255,255,255,0.8);margin-left:12px;">' + (card.issuing_bank or 'Banco no identificado') + '</span>'
+                        '<span style="color:rgba(255,255,255,0.6);margin-left:8px;">(' + (card.card_type or '') + ' ' + (card.card_level or '') + ')</span>'
+                        '<span style="color:rgba(255,255,255,0.5);margin-left:8px;">' + (card.bank_country_name or card.bank_country or '') + '</span>'
+                        '<span style="float:right;">' + ('✅' if card.is_valid_luhn else '❌') + ' Luhn</span>'
+                        '</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Associated data
+                    assoc_items = []
+                    if card.associated_email:
+                        assoc_items.append(f"📧 {card.associated_email}")
+                    if card.associated_phone:
+                        assoc_items.append(f"📱 {card.associated_phone}")
+                    if card.associated_name:
+                        assoc_items.append(f"👤 {card.associated_name}")
+                    if card.associated_address:
+                        assoc_items.append(f"🏠 {card.associated_address}")
+                    if card.associated_ssn:
+                        masked_ssn = f"***-**-{card.associated_ssn[-4:]}" if len(card.associated_ssn) >= 4 else card.associated_ssn
+                        assoc_items.append(f"🔑 {masked_ssn}")
+                    if card.breach_source:
+                        assoc_items.append(f"📋 {card.breach_source}")
+
+                    if assoc_items:
+                        st.markdown(" &nbsp; ".join(assoc_items))
+
+            elif r.emails or r.phones or r.names:
+                st.info("📧 Se encontraron datos asociados pero no se extrajeron tarjetas de las brechas disponibles")
+                if r.emails:
+                    st.markdown(f"**Emails encontrados:** {', '.join(r.emails[:5])}")
+                if r.phones:
+                    st.markdown(f"**Teléfonos encontrados:** {', '.join(r.phones[:5])}")
+                if r.names:
+                    st.markdown(f"**Nombres encontrados:** {', '.join(r.names[:5])}")
+                st.info("💡 Agrega más APIs (DeHashed, IntelligenceX) para encontrar más tarjetas")
+
+            else:
+                st.warning("No se encontraron tarjetas ni datos para este campo")
+                st.info("💡 Verifica que las APIs estén configuradas en el sidebar")
+
+            # Sources
+            if r.sources_checked:
+                st.caption(f"Fuentes consultadas: {', '.join(r.sources_checked)} | Tiempo: {r.search_time_ms}ms")
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 2: Lote
+    # ════════════════════════════════════════════════════════════
+    elif ext_mode.startswith("📁"):
+        st.markdown("### 📁 Extracción Masiva")
+        st.caption("Un campo por línea. El motor detecta el tipo automáticamente y busca tarjetas para cada uno.")
+
+        ext_batch_text = st.text_area(
+            "Campos de búsqueda",
+            height=250,
+            placeholder="user@email.com\n+1-212-555-1234\n123-45-6789\n1206 Laurel Ln Richardson, TX 75080\nJohn Smith",
+            key="ext_batch_text",
+        )
+
+        ext_workers = st.slider("Hilos paralelos", 1, 10, 5, key="ext_workers")
+
+        if st.button("⚡ EXTRAER LOTE", type="primary", use_container_width=True, key="btn_ext_batch"):
+            if ext_batch_text.strip():
+                fields = CardExtractor.parse_batch_input(ext_batch_text)
+                st.info(f"📋 {len(fields)} campos detectados")
+
+                progress = st.progress(0)
+                status_text = st.empty()
+
+                def ext_progress(done, total):
+                    progress.progress(done / total)
+                    status_text.text(f"⚡ Procesando {done}/{total}...")
+
+                with st.spinner(f"⚡ Extrayendo tarjetas de {len(fields)} campos..."):
+                    batch = card_ext.search_batch(fields, max_workers=ext_workers, on_progress=ext_progress)
+                    st.session_state["ext_batch"] = batch
+                    status_text.text(f"✅ {batch.total_cards} tarjetas encontradas ({batch.unique_cards} únicas) en {batch.total_time_ms}ms")
+
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "card_extract_batch", {
+                            "queries": batch.total_queries,
+                            "cards": batch.total_cards,
+                        })
+
+        if "ext_batch" in st.session_state:
+            batch = st.session_state["ext_batch"]
+            st.markdown("---")
+
+            # Summary
+            st.markdown(f"### 📊 Resumen: {batch.total_queries} consultas → {batch.total_cards} tarjetas ({batch.unique_cards} únicas)")
+
+            # Network distribution
+            if batch.networks:
+                st.markdown("**Distribución por Red:**")
+                nc1, nc2, nc3, nc4 = st.columns(4)
+                for i, (net, cnt) in enumerate(sorted(batch.networks.items(), key=lambda x: -x[1])[:4]):
+                    [nc1, nc2, nc3, nc4][i].metric(net, cnt)
+
+            # Bank distribution
+            if batch.banks:
+                st.markdown("**Top Bancos Emisores:**")
+                for bank, cnt in sorted(batch.banks.items(), key=lambda x: -x[1])[:10]:
+                    bar_len = int(cnt / max(batch.banks.values()) * 30) if batch.banks else 0
+                    st.markdown(f"`{bank}` {'█' * bar_len} {cnt}")
+
+            # Table
+            rows = []
+            for r in batch.results:
+                for c in r.cards_found:
+                    rows.append({
+                        "Query": r.input_value[:40],
+                        "Tipo": r.input_field,
+                        "Tarjeta": c.card_masked,
+                        "Red": f"{c.network_icon} {c.network}",
+                        "Banco": c.issuing_bank or "",
+                        "Tipo": c.card_type,
+                        "Nivel": c.card_level,
+                        "Luhn": "✅" if c.is_valid_luhn else "❌",
+                        "Brecha": c.breach_source,
+                    })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+            # Export
+            st.markdown("### 📥 Exportar")
+            exc1, exc2, exc3 = st.columns(3)
+            with exc1:
+                csv_d = CardExtractor.export_csv(batch)
+                st.download_button("📄 CSV", csv_d, "card_extraction.csv", "text/csv", use_container_width=True, key="dl_ext_csv")
+            with exc2:
+                json_d = CardExtractor.export_json(batch)
+                st.download_button("📋 JSON", json_d, "card_extraction.json", "application/json", use_container_width=True, key="dl_ext_json")
+            with exc3:
+                txt_d = CardExtractor.export_txt(batch)
+                st.download_button("📝 TXT", txt_d, "card_extraction.txt", "text/plain", use_container_width=True, key="dl_ext_txt")
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 3: CSV Upload
+    # ════════════════════════════════════════════════════════════
+    elif ext_mode.startswith("📄"):
+        st.markdown("### 📄 Subir CSV/Excel")
+        st.caption("Columnas: email, phone, ssn, address, name — auto-detecta")
+
+        ext_file = st.file_uploader("Sube tu archivo", type=["csv", "xlsx", "xls"], key="ext_file")
+        if ext_file:
+            try:
+                if ext_file.name.endswith(".csv"):
+                    content = ext_file.read().decode("utf-8", errors="ignore")
+                    fields = CardExtractor.parse_csv(content)
+                    df = pd.read_csv(ext_file)
+                    ext_file.seek(0)
+                else:
+                    df = pd.read_excel(ext_file)
+                    import io as _io
+                    buf = _io.StringIO()
+                    df.to_csv(buf, index=False)
+                    fields = CardExtractor.parse_csv(buf.getvalue())
+
+                st.markdown(f"📋 **{len(df)} filas** → **{len(fields)} campos para búsqueda de tarjetas**")
+                st.dataframe(df.head(5), use_container_width=True)
+
+                if fields:
+                    type_counts = {}
+                    for f in fields:
+                        type_counts[f.field_type] = type_counts.get(f.field_type, 0) + 1
+                    st.markdown("**Campos detectados:**")
+                    for ft, cnt in sorted(type_counts.items(), key=lambda x: -x[1]):
+                        st.markdown(f"- `{ft}`: {cnt}")
+
+                    ext_workers_csv = st.slider("Hilos", 1, 10, 5, key="ext_workers_csv")
+
+                    if st.button("⚡ EXTRAER desde CSV", type="primary", use_container_width=True, key="btn_ext_csv"):
+                        progress = st.progress(0)
+                        status_text = st.empty()
+
+                        def csv_progress(done, total):
+                            progress.progress(done / total)
+                            status_text.text(f"⚡ {done}/{total}...")
+
+                        with st.spinner(f"Extrayendo de {len(fields)} campos..."):
+                            batch = card_ext.search_batch(fields, max_workers=ext_workers_csv, on_progress=csv_progress)
+                            st.session_state["ext_batch"] = batch
+                            status_text.text(f"✅ {batch.total_cards} tarjetas")
+
+                            if HAS_TRACKER and st.session_state.get("tracker_user"):
+                                log_activity(st.session_state.tracker_user["id"], "card_extract_csv", {
+                                    "file": ext_file.name,
+                                    "cards": batch.total_cards,
+                                })
+            except Exception as e:
+                st.error(f"Error: {e}")
+        else:
+            st.info("📄 Arrastra un CSV o Excel")
+            template = """email,phone,name,address\nuser@example.com,+1-212-555-1234,John Smith,1206 Laurel Ln Richardson TX\njane@gmail.com,,Jane Doe,456 Oak Ave Dallas TX"""
+            st.download_button("📥 Template CSV", template, "card_template.csv", "text/csv")
+
+# ─── TAB 6: Credit Card Analyzer ───────────────────────────
+
+with tab6:
+    st.markdown("## 🔎 Credit Card Analyzer")
     st.markdown(
         "Análisis completo de tarjetas de crédito/débito: BIN lookup, red de pago, "
         "banco emisor, tipo, nivel, país y validación Luhn."
@@ -1200,9 +1480,9 @@ with tab5:
             except Exception as e:
                 st.error(f"Error: {e}")
 
-# ─── TAB 6: Exportar ────────────────────────────────────────
+# ─── TAB 8: Exportar ────────────────────────────────────────
 
-with tab6:
+with tab8:
     st.markdown("## 📥 Exportar Resultados")
     if "last_result" in st.session_state:
         result = st.session_state["last_result"]
@@ -1229,9 +1509,9 @@ with tab6:
         for f in sorted(os.listdir("output/reports"), reverse=True)[:10]:
             st.markdown(f"📄 {f}")
 
-# ─── TAB 8: Setup & Ayuda ──────────────────────────────────
+# ─── TAB 9: Setup & Ayuda ──────────────────────────────────
 
-with tab8:
+with tab9:
     st.markdown("## 📖 Setup & Ayuda Completa")
     st.markdown("Configura todas las APIs y aprende a usar la herramienta")
 
@@ -1423,7 +1703,63 @@ with tab8:
 5. Ve: ✅ Válido, banco: JPMorgan Chase, checksum OK
 """)
 
-    with st.expander("💳 Credit Card Analyzer — Análisis de Tarjetas"):
+    with st.expander("💳 Credit Card Extractor — Extracción de Tarjetas desde Brechas", expanded=True):
+        st.markdown("""
+**Motor que extrae TODAS las credit cards asociadas a una identidad desde brechas de datos.**
+
+### Qué Hace
+Ingresa un email, teléfono, SSN, dirección o nombre → el motor busca en múltiples fuentes de brechas
+y extrae TODAS las tarjetas de crédito/débito vinculadas a esa identidad.
+
+### Modos de Uso
+- **🔍 Individual:** Un campo → busca tarjetas asociadas
+- **📁 Lote:** Múltiples campos → procesamiento paralelo (hasta 10 hilos)
+- **📄 CSV/Excel:** Subes archivo → auto-detecta columnas
+
+### Tipos de Campo Aceptados
+| Campo | Ejemplo | Qué busca |
+|-------|---------|----------|
+| 📧 email | user@email.com | Tarjetas en brechas de ese email |
+| 📱 phone | +1-212-555-1234 | Tarjetas asociadas al teléfono |
+| 🔑 ssn | 123-45-6789 | Tarjetas del titular del SSN |
+| 🏠 address | 1206 Laurel Ln TX | Tarjetas de residentes en esa dirección |
+| 👤 name | John Smith | Tarjetas del titular del nombre |
+
+### Qué Entrega por Cada Tarjeta
+- ✅ Número enmascarado (****1234)
+- ✅ Red de pago (Visa 🟦 / Mastercard 🟧 / Amex 🟩)
+- ✅ Banco emisor (Chase, BofA, Wells Fargo, etc.)
+- ✅ Tipo (crédito / débito / prepago)
+- ✅ Nivel (Classic / Gold / Platinum / Signature)
+- ✅ País de emisión
+- ✅ Validación Luhn (si el número es válido)
+- ✅ Email, teléfono, nombre asociado a la tarjeta
+- ✅ Fuente de brecha y fecha
+- ✅ Nivel de exposición (full/partial/masked)
+
+### Ejemplo Práctico
+```
+Entrada: user@email.com
+Motor: 🔍 LeakCheck Pro + DeHashed + IntelligenceX
+
+Resultado:
+💳 4532****0367 | 🟦 Visa | Chase | Gold | US | ✅ Luhn
+   📧 user@email.com | 📋 Breach 2024
+
+💳 5424****1111 | 🟧 Mastercard | Citibank | World | US | ✅ Luhn
+   📧 user@email.com | 📋 Breach 2023
+```
+
+### Fuentes de Datos
+- LeakCheck Pro (requiere API key $10/mes)
+- DeHashed (requiere API key $20/mes) — Opcional
+- IntelligenceX (requiere API key $50/mes) — Opcional
+
+**Mínimo:** Solo LeakCheck Pro ($10/mes)
+**Máximo:** Todas las APIs ($80/mes)
+""")
+
+    with st.expander("🔎 Credit Card Analyzer — Análisis Detallado de Tarjetas"):
         st.markdown("""
 **Motor completo de análisis de tarjetas de crédito/débito.**
 
