@@ -30,6 +30,17 @@ st.set_page_config(page_title="Financial OSINT Tool PRO", page_icon="⚡", layou
 st.markdown("""
 <style>
     .stApp { background: #0a0a0f; }
+    section[data-testid="stSidebar"] { background-color: #0d1117; }
+    section[data-testid="stSidebar"] .stMarkdown { color: #c9d1d9; }
+    section[data-testid="stSidebar"] .stTextInput label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stSelectbox label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stSlider label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stRadio label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stToggle label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stMetric label { color: #8b949e; }
+    section[data-testid="stSidebar"] .stMetric [data-testid="stMetricValue"] { color: #e94560; }
+    section[data-testid="stSidebar"] hr { border-color: #21262d; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #e94560 !important; }
     h1, h2, h3, h4 { color: #fff !important; }
     .stMetric { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
     .stMetric [data-testid="stMetricValue"] { color: #e94560 !important; }
