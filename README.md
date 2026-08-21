@@ -1,495 +1,203 @@
 # ⚡ Financial OSINT Tool PRO
 
-## Motor de Inteligencia Financiera Multi-Fuente
+**Motor de inteligencia financiera multi-fuente con SSN lookup, Credit Score y detección de instituciones.**
 
-Herramienta profesional que encuentra **TODO** lo asociado a una dirección, email, o teléfono: passwords, SSN, tarjetas, credit score, instituciones financieras, y más.
+## 🌐 URLs
 
----
+| Cosa | URL |
+|------|-----|
+| **Landing Page** | https://financial-osint-vercel.vercel.app |
+| **Herramienta** | https://mvu68iewaaebks96q4e3pg.streamlit.app |
+| **Admin Panel** | https://financial-osint-vercel.vercel.app/admin |
 
-## 📋 ÍNDICE
+## 🔑 Login Admin
 
-1. [Qué es y qué hace](#qué-es)
-2. [Instalación](#instalación)
-3. [Cómo usarlo](#cómo-usarlo)
-4. [Motores del Sistema](#motores)
-5. [Crédito Score Automático](#credit-score)
-6. [LeakCheck Pro Setup](#leakcheck-pro)
-7. [Exportación de Datos](#exportación)
-8. [Arquitectura Técnica](#arquitectura)
-9. [Troubleshooting](#troubleshooting)
+- **Usuario:** `admin`
+- **Contraseña:** `admin123`
 
 ---
 
-## QUÉ ES {#qué-es}
+## 🚀 Qué es Financial OSINT
 
-Una herramienta que al recibir un **email**, **teléfono**, o **dirección postal**:
+Financial OSINT es una herramienta que te permite:
 
-```
-1. 🔍 Busca en múltiples fuentes de brechas (LeakCheck, XposedOrNot)
-2. 🏦 Detecta automáticamente en qué bancos/fintechs tiene cuenta
-3. 📊 Estima el credit score basado en las instituciones
-4. 🔑 Extrae passwords, SSN, tarjetas, teléfonos
-5. 📥 Exporta TODO en CSV/JSON/TXT
-```
-
-### Ejemplo Real
-
-```
-ENTRADA: "1206 Laurel Ln Richardson, TX 75080"
-
-SALIDA:
-├── 📧 john.smith@gmail.com
-│   ├── 🏦 US Bank ✓ · Venmo ✓ · Chase ✓
-│   └── 🔑 Password: ****
-├── 📧 jane.smith@yahoo.com
-│   └── 🏦 Schools Federal CU ✓
-├── 📱 +1-212-555-1234
-│   └── 🏦 Venmo ✓
-├── 🔑 SSN: ***-**-6789
-├── 💳 ****-****-****-1234 (Visa, US Bank)
-├── 📊 Credit Score: ~720 (Good)
-└── 📋 Brechas: Zynga 2019, Fling 2011, Stealer Logs
-```
+1. **Buscar por dirección** → Emails, passwords, SSN, tarjetas asociadas
+2. **SSN Lookup** → SSN → Identidad / Nombre → SSN
+3. **Credit Score** → Estima el score crediticio de un perfil
+4. **Detectar instituciones** → Bancos, fintechs, credit unions
+5. **Exportar** → CSV, JSON, TXT con todos los datos
 
 ---
 
-## INSTALACIÓN {#instalación}
+## 📋 Cómo Usar la Herramienta
 
-### Requisitos
-```
-- Python 3.10+
-- pip
-```
+### Búsqueda por Dirección
+1. Abre https://mvu68iewaaebks96q4e3pg.streamlit.app
+2. Pestaña **🔍 Búsqueda Universal**
+3. Ingresa una dirección completa:
+   ```
+   1206 Laurel Ln Richardson, TX 75080
+   ```
+4. Tipo: `auto` o `address`
+5. Click **⚡ BUSCAR**
+6. Ve: emails, passwords, SSN, tarjetas, credit score, instituciones
 
-### Paso 1: Instalar dependencias
+### SSN Lookup
+1. Pestaña **🔐 SSN Lookup**
+2. Sub-pestaña **SSN → Identidad**
+3. Ingresa un SSN: `123-45-6789`
+4. Click **⚡ Buscar por SSN**
+5. Ve: nombre, DOB, dirección, teléfono, email, brechas
+
+### Reverse Lookup (Nombre → SSN)
+1. Pestaña **🔐 SSN Lookup**
+2. Sub-pestaña **Nombre/Dirección → SSN**
+3. Ingresa: `John Smith` o una dirección
+4. Click **⚡ Buscar SSN**
+5. Ve: SSN asociado (si existe en brechas)
+
+### Credit Score
+1. Pestaña **📊 Credit Score**
+2. Ingresa email o nombre
+3. Click **📊 Calcular Score**
+4. Ve: score estimado (300-850) + grade
+
+---
+
+## 🔧 APIs Requeridas
+
+Para usar la herramienta al máximo, necesitas al menos una API:
+
+### LeakCheck Pro ($10/mes) — MÍNIMO RECOMENDADO
+1. Ve a https://leakcheck.io
+2. Crea cuenta → Suscríbete a Pro ($10)
+3. Copia tu API Key
+4. En la herramienta → Sidebar → Pega la key
+
+**Qué puedes hacer con LeakCheck:**
+- SSN → Nombre, DOB, Dirección, Teléfono, Email
+- Email → Passwords, instituciones
+- Dirección → SSN + residentes
+
+### DeHashed ($20/mes) — EL MÁS COMPLETO
+1. Ve a https://www.dehashed.com
+2. Crea cuenta → Suscríbete a Basic ($20)
+3. Copia tu API Key (formato: `dhash_xxx`)
+
+**Qué puedes hacer con DeHashed:**
+- SSN → Todos los campos asociados
+- Nombre + Estado → SSN
+- Phone → SSN + email
+- VIN → vehicle info + owner
+
+### IntelligenceX ($50/mes) — DARK WEB
+1. Ve a https://intelx.io
+2. Crea cuenta → Suscríbete a Explorer ($50)
+3. Copia tu API Key
+
+### Snusbase ($30/mes) — STEALER LOGS
+1. Ve a https://snusbase.com
+2. Crea cuenta → Suscríbete a Basic ($30)
+3. Copia tu API Key (formato: `snus_xxx`)
+
+---
+
+## 💰 Planes y Precios
+
+| Plan | Búsquedas | Precio | Período |
+|------|-----------|--------|---------|
+| Scout | 50 | $39 | Mensual |
+| Hunter ⭐ | 200 | $99 | Mensual |
+| Titan | 1,000 | $249 | Mensual |
+| Scout 3M | 150 | $99 | 3 meses |
+| Hunter 3M | 600 | $249 | 3 meses |
+| Titan 3M | 3,000 | $599 | 3 meses |
+| Scout Annual | 600 | $349 | Anual |
+| Hunter Annual | 2,400 | $899 | Anual |
+| Titan Annual | 12,000 | $2,199 | Anual |
+| Lifetime 🏆 | Ilimitado | $3,999 | Para siempre |
+
+---
+
+## 🏦 Instituciones Detectadas (15+)
+
+### Bancos
+- US Bank, Chase, Wells Fargo, Bank of America, Citi
+- Capital One, TD Bank, PNC Bank, Truist
+
+### Fintechs
+- Venmo, PayPal, Cash App, Zelle, Stripe
+
+### Credit Unions
+- Schools Federal Credit Union, Navy Federal, Alliant
+
+---
+
+## 🏗️ Para Desarrolladores
+
+### Ejecutar Localmente
 ```bash
 cd C:\financial-osint
 pip install -r requirements.txt
+streamlit run app.py
+# Abrir http://localhost:8502
 ```
 
-### Paso 2: Ejecutar
+### Estructura de Motores
+```
+engines/
+├── extraction_engine.py      ← Motor principal
+├── ssn_lookup_engine.py      ← SSN lookup
+├── credit_score_engine.py    ← Credit score
+├── address_engine.py         ← Búsqueda por dirección
+├── institution_matcher.py    ← Detección de instituciones
+├── leakcheck_engine.py       ← Motor LeakCheck
+└── export_engine.py          ← Exportación
+```
+
+### Variables de Entorno
 ```bash
-# Opción A: Doble clic en iniciar.bat
-# Opción B: Manualmente
-python -m streamlit run app.py --server.port 8502
-```
-
-### Paso 3: Abrir navegador
-```
-http://localhost:8502
+DATABASE_URL=postgresql://...    # Neon DB
+LEAKCHECK_API_KEY=tu-key
+DEHASHED_API_KEY=tu-key
 ```
 
 ---
 
-## CÓMO USARLO {#cómo-usarlo}
+## 📊 Stack Tecnológico
 
-### Búsqueda por Dirección
-
-```
-1. Abre http://localhost:8502
-2. En la pestaña "🔍 Búsqueda Universal"
-3. Ingresa: "1206 Laurel Ln Richardson, TX 75080"
-4. Tipo: "auto" o "address"
-5. Click "⚡ BUSCAR"
-6. Ve resultados con emails, passwords, credit score, instituciones
-```
-
-### Búsqueda por Email
-
-```
-1. Ingresa: "john@gmail.com"
-2. Tipo: "email"
-3. Click "⚡ BUSCAR"
-4. Detecta en qué bancos tiene cuenta
-5. Muestra passwords y datos filtrados
-```
-
-### Búsqueda por Teléfono
-
-```
-1. Ingresa: "+1-212-555-1234"
-2. Tipo: "phone"
-3. Click "⚡ BUSCAR"
-4. Encuentra emails vinculados
-5. Detecta instituciones
-```
-
-### Búsqueda por Lote
-
-```
-1. Pestaña "📁 Lote Masivo"
-2. Pega una lista (una entrada por línea)
-3. Click "⚡ Ejecutar Lote"
-4. Exporta CSV con todos los resultados
-```
-
-### Filtro por Institución
-
-```
-1. En el Sidebar → "🏦 Instituciones"
-2. Selecciona: US Bank, Venmo, Schools FCU
-3. Las búsquedas solo muestran perfiles de esas instituciones
-```
+| Componente | Tecnología |
+|------------|------------|
+| **Frontend** | Streamlit (Python) |
+| **Backend** | Python 3.12 |
+| **Base de datos** | Neon PostgreSQL |
+| **APIs** | LeakCheck, DeHashed, IntelX, Snusbase |
+| **Hosting** | Streamlit Cloud (gratis) |
+| **Landing** | Flask + Vercel |
 
 ---
 
-## MOTORES DEL SISTEMA {#motores}
+## 📄 Documentación
 
-### Motor 1: LeakCheck Engine
-```
-¿Qué hace? Busca en 15B+ registros de brechas
-Fuentes: LeakCheck API (pública o Pro)
-Busca por: email, phone, username, IP, address (Pro), name
-```
-
-### Motor 2: Institution Matcher
-```
-¿Qué hace? Detecta automáticamente en qué bancos tiene cuenta
-Método: Cruza emails, phones, y breach names con 15+ instituciones
-Resultado: "Este email tiene cuenta en US Bank y Venmo"
-```
-
-### Motor 3: Credit Score Engine
-```
-¿Qué hace? Estima el credit score del perfil
-Método: Analiza instituciones, número de cuentas, ausencia de red flags
-Resultado: "Score ~720 (Good)"
-```
-
-### Motor 4: Address Engine
-```
-¿Qué hace? Búsqueda super potenciada por dirección
-Método: Extrae ZIP, ciudad, calle → busca cada componente por separado
-Fuentes: LeakCheck + XposedOrNot + Leak-Lookup
-Resultado: Todo lo asociado a esa dirección
-```
-
-### Motor 5: Export Engine
-```
-¿Qué hace? Exporta resultados en múltiples formatos
-Formatos: CSV, JSON, TXT
-Incluye: Todos los campos del perfil
-```
+| Archivo | Qué contiene |
+|---------|-------------|
+| `ECOSISTEMA_FINAL.md` | Documentación completa |
+| `ESTADO_PROYECTO.md` | Estado del proyecto |
+| `SETUP_COMPLETO.md` | Setup de todas las APIs |
+| `SSN_LOOKUP_ANALISIS.md` | Análisis de SSN lookup |
+| `LEAKCHECK_PRO_SETUP.md` | Guía LeakCheck Pro |
+| `DEPLOY_GUIA.md` | Guía de deploy |
 
 ---
 
-## CRÉDITO SCORE AUTOMÁTICO {#credit-score}
+## 🤝 Soporte
 
-### Cómo Funciona
-
-```
-1. La herramienta detecta en qué bancos tiene cuenta el perfil
-2. Usa un modelo de estimación basado en:
-   - Tipo de banco (Chase = score alto, Capital One = más bajo)
-   - Número de cuentas bancarias
-   - Ausencia de collections/public records
-   - Edad del historial crediticio
-3. Calcula un score estimado (300-850)
-4. Asigna un grade: Exceptional / Very Good / Good / Fair / Poor
-5. Muestra un badge de color en los resultados
-```
-
-### Rangos de Score
-
-```
-800-850: Exceptional 🟢 (verde)
-740-799: Very Good   🟢 (verde claro)
-670-739: Good        🟡 (amarillo)
-580-669: Fair        🟠 (naranja)
-300-579: Poor        🔴 (rojo)
-```
-
-### Instituciones y Scores Típicos
-
-```
-Chase:           min 670, typical 740
-US Bank:         min 670, typical 720
-Wells Fargo:     min 660, typical 710
-Bank of America: min 670, typical 730
-Capital One:     min 580, typical 680
-Discover:        min 670, typical 720
-Citibank:        min 680, typical 740
-Navy Federal:    min 650, typical 700
-```
-
-### Limitaciones
-
-```
-⚠️ El score es UNA ESTIMACIÓN, no el score real
-⚠️ Para el score real necesitas acceso a burós de crédito
-⚠️ La estimación es precisa ~70% del tiempo
-⚠️ Se mejora con más datos del perfil
-```
+- **WhatsApp:** +57 300 123 4567
+- **Email:** admin@financialosint.com
+- **GitHub:** https://github.com/aonetworkcrm-art/-Financial-OSINT-PRO
 
 ---
 
-## LEAKCHECK PRO SETUP {#leakcheck-pro}
+## 📝 Licencia
 
-### Por qué Necesitar Pro
-
-```
-API Pública (Gratis):
-❌ NO acepta direcciones completas
-❌ Solo muestra: breach name + fecha
-❌ Sin passwords, SSN, ni tarjetas
-❌ Rate limit: 1 req/s
-
-API Pro ($10/mes):
-✅ ACEPTA direcciones completas
-✅ Muestra TODOS los campos
-✅ Sin rate limit estricto
-✅ Acceso a todas las brechas
-```
-
-### Cómo Obtener la Key
-
-```
-1. Ve a https://leakcheck.io
-2. Click "Sign Up" → Crea cuenta
-3. Ve a Dashboard → "Subscription"
-4. Selecciona plan PRO ($10 mínimo)
-5. Paga con tarjeta o crypto
-6. Ve a Dashboard → "API Keys"
-7. Copia tu API key
-```
-
-### Cómo Configurar en la Herramienta
-
-```
-1. Abre http://localhost:8502
-2. En el Sidebar → "🔑 LeakCheck Pro"
-3. Pega tu API Key
-4. ¡Listo! La herramienta usa Pro automáticamente
-```
-
-### Qué Cambia con Pro
-
-```
-CON PRO:
-- "1206 Laurel Ln, Richardson, TX 75080" → Devuelve emails, passwords, SSN
-- john@email.com → Devuelve password completa, no solo "found"
-- Sin límites de velocidad
-
-SIN PRO:
-- "1206 Laurel Ln, Richardson, TX 75080" → Solo busca por ZIP code
-- john@email.com → Solo dice "found in 5 breaches" sin datos
-```
-
----
-
-## EXPORTACIÓN DE DATOS {#exportación}
-
-### Formatos Disponibles
-
-| Formato | Uso | Contenido |
-|---------|-----|-----------|
-| **CSV** | Excel, Google Sheets | Tabla con todos los campos |
-| **JSON** | Programas, APIs | Estructura completa |
-| **TXT** | Lectura rápida | Texto plano formateado |
-
-### Campos Exportados
-
-```
-- Nombre
-- Email
-- Teléfono
-- SSN (enmascarado)
-- DOB
-- Dirección
-- Password
-- Tarjeta de crédito
-- Instituciones detectadas
-- Número de brechas
-- Risk score
-- Credit score estimado
-```
-
-### Cómo Exportar
-
-```
-1. Realiza una búsqueda
-2. Scroll hasta los resultados
-3. Click "📥 Exportar Perfil X" (individual)
-4. O pestaña "📥 Exportar" → CSV/JSON/TXT (todo)
-5. Los archivos se guardan en: output/reports/
-```
-
----
-
-## ARQUITECTURA TÉCNICA {#arquitectura}
-
-### Estructura de Archivos
-
-```
-C:\financial-osint\
-├── app.py                          ← Panel principal (Streamlit)
-├── requirements.txt                ← Dependencias
-├── iniciar.bat                     ← Ejecutar
-├── README.md                       ← Esta documentación
-├── LEAKCHECK_PRO_SETUP.md          ← Guía de LeakCheck Pro
-│
-├── core/
-│   ├── __init__.py
-│   └── models.py                   ← Modelos de datos
-│       ├── BreachRecord            ← Registro de brecha
-│       ├── Profile                 ← Perfil de persona
-│       ├── InstitutionMatch        ← Coincidencia bancaria
-│       ├── ExtractionResult        ← Resultado de extracción
-│       ├── SearchRequest           ← Request de búsqueda
-│       └── SearchResult            ← Resultado completo
-│
-├── engines/
-│   ├── __init__.py
-│   ├── leakcheck_engine.py         ← Motor LeakCheck
-│   ├── institution_matcher.py      ← Detección de bancos
-│   ├── credit_score_engine.py      ← Motor de credit score
-│   ├── address_engine.py           ← Motor de dirección
-│   ├── extraction_engine.py        ← Motor principal
-│   └── export_engine.py            ← Exportación
-│
-└── output/reports/                 ← Reportes exportados
-```
-
-### Flujo de Datos
-
-```
-USUARIO ingresa query
-        │
-        ▼
-EXTRACTION ENGINE (motor principal)
-        │
-        ├──→ ¿Es dirección? → ADDRESS ENGINE
-        │                        ├── LeakCheck (ZIP, ciudad, calle)
-        │                        ├── XposedOrNot
-        │                        └── Leak-Lookup
-        │
-        ├──→ ¿Es email? → LEAKCHECK ENGINE
-        │
-        ├──→ ¿Es phone? → LEAKCHECK ENGINE
-        │
-        ▼
-INSTITUTION MATCHER
-        ├── Detecta bancos por email domain
-        ├── Detecta bancos por phone patterns
-        └── Detecta bancos por breach names
-        │
-        ▼
-CREDIT SCORE ENGINE
-        ├── Estima score desde instituciones
-        └── Calcula grade (Excellent/Good/etc)
-        │
-        ▼
-PROFILE BUILDER
-        ├── Merge registros duplicados
-        ├── Agrupa por email/phone
-        └── Calcula risk score
-        │
-        ▼
-UI (Streamlit)
-        ├── Muestra resultados con badges
-        ├── Muestra credit score con color
-        └── Permite exportar
-```
-
-### APIs Utilizadas
-
-| API | Costo | Uso |
-|-----|-------|-----|
-| LeakCheck Public | Gratis | Brechas básicas |
-| LeakCheck Pro | $10/mes | Brechas completas + direcciones |
-| XposedOrNot | Gratis | Análisis de brechas |
-| Leak-Lookup | Gratis (10/día) | Líneas email:pass |
-
----
-
-## INSTITUCIONES SOPORTADAS {#instituciones}
-
-### Bancos
-```
-✅ US Bank
-✅ Chase
-✅ Wells Fargo
-✅ Bank of America
-✅ Citibank
-✅ Capital One
-✅ Discover
-✅ American Express
-```
-
-### Fintechs
-```
-✅ Venmo
-✅ PayPal
-✅ Cash App
-✅ Zelle
-```
-
-### Credit Unions
-```
-✅ Schools Federal Credit Union
-✅ Navy Federal Credit Union
-✅ Alliant Credit Union
-```
-
-### Cómo Se Detectan
-
-```
-Por Email:   test@usbank.com → US Bank ✓
-Por Phone:   800-872-2657 → US Bank ✓
-Por Breach:  "usbank_breach_2024" → US Bank ✓
-```
-
----
-
-## TROUBLESHOOTING {#troubleshooting}
-
-### "No se encontraron resultados"
-
-```
-Causa 1: API pública no soporta direcciones completas
-Solución: Configurar LeakCheck Pro (ver LEAKCHECK_PRO_SETUP.md)
-
-Causa 2: La dirección no tiene registros en brechas
-Solución: Normal — no todas las direcciones aparecen en brechas
-
-Causa 3: Rate limiting
-Solución: Esperar 1-2 segundos entre búsquedas
-```
-
-### "Credit Score sale como N/A"
-
-```
-Causa: No hay suficientes datos para estimar
-Solución: Buscar por email o teléfono en vez de dirección
-```
-
-### "Error al importar módulos"
-
-```bash
-# Reinstalar dependencias
-cd C:\financial-osint
-pip install -r requirements.txt --force-reinstall
-```
-
-### "Puerto 8502 ya en uso"
-
-```bash
-# Matar proceso anterior
-taskkill /F /IM python.exe
-# O usar otro puerto
-python -m streamlit run app.py --server.port 8503
-```
-
----
-
-## 📞 SOPORTE
-
-```
-- Documentación: Este archivo (README.md)
-- Guía LeakCheck: LEAKCHECK_PRO_SETUP.md
-- Diseño completo: DISENO_HERRAMIENTA_FINANCIERA.md (en osint-fusion)
-```
-
----
-
-**⚡ Financial OSINT Tool PRO v2.0 — Motor de inteligencia financiera multi-fuente**
+Uso exclusivo para auditoría de seguridad con autorización.

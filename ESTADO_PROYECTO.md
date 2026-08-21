@@ -1,195 +1,179 @@
-# 📌 ESTADO FINAL — Financial OSINT Tool PRO
-## Documento de Continuidad entre Sesiones
+# 📊 Estado del Proyecto — Financial OSINT Tool PRO
 
-**Última actualización:** 19 de Agosto, 2026
-**Estado:** ✅ HERRAMIENTA FUNCIONANDO + LANDING DESPLEGADA EN VERCEL
+## 🌐 URLs Activas
 
----
-
-## 🌐 URLs
-
-| Servicio | URL | Estado |
-|----------|-----|--------|
-| **Landing Page (ventas)** | https://financial-osint-vercel.vercel.app | ✅ DESPLEGADA |
-| **Herramienta OSINT** | http://localhost:8502 | ✅ Local |
+| Componente | URL | Estado |
+|------------|-----|--------|
+| **Landing Page** | https://financial-osint-vercel.vercel.app | ✅ 200 OK |
+| **Herramienta** | https://mvu68iewaaebks96q4e3pg.streamlit.app | ✅ Funcionando |
+| **GitHub** | https://github.com/aonetworkcrm-art/-Financial-OSINT-PRO | ✅ Código subido |
+| **Neon DB** | https://console.neon.tech | ✅ Compartida con Proxy Commander |
 
 ---
 
-## 📂 ESTRUCTURA COMPLETA
+## 📂 Estructura del Proyecto
 
 ```
-C:\financial-osint\                  ← HERRAMIENTA (Streamlit)
-├── app.py                           ← Panel principal (342 líneas)
-├── requirements.txt                 ← Dependencias
-├── iniciar.bat                      ← Ejecutar herramienta
-├── iniciar_todo.bat                 ← Landing + Tool
-├── iniciar_landing.bat              ← Solo landing (5002)
-├── reiniciar.bat                    ← Limpiar cache + reiniciar
-├── database.py                      ← Base de datos SQLite
+C:\financial-osint\
+├── 📄 CÓDIGO PRINCIPAL
+│   ├── app.py                    ← Herramienta Streamlit (800+ líneas)
+│   ├── user_tracker.py           ← Tracking de usuarios
+│   ├── database.py               ← Base de datos SQLite
+│   ├── database_shared.py        ← Base de datos PostgreSQL
+│   ├── reiniciar.bat             ← Reiniciar servidor
+│   └── iniciar.bat               ← Iniciar herramienta
 │
-├── core/
+├── 📁 engines/                   ← Motores de búsqueda
 │   ├── __init__.py
-│   └── models.py                    ← Modelos de datos (126 líneas)
+│   ├── extraction_engine.py      ← Motor principal de extracción
+│   ├── ssn_lookup_engine.py      ← Motor de SSN lookup
+│   ├── credit_score_engine.py    ← Motor de Credit Score
+│   ├── address_engine.py         ← Motor de búsqueda por dirección
+│   ├── institution_matcher.py    ← Detección de 15+ instituciones
+│   ├── leakcheck_engine.py       ← Motor LeakCheck API
+│   └── export_engine.py          ← Exportación CSV/JSON/TXT
 │
-├── engines/
+├── 📁 core/
 │   ├── __init__.py
-│   ├── leakcheck_engine.py          ← Motor LeakCheck (229 líneas)
-│   ├── institution_matcher.py       ← 15+ instituciones (218 líneas)
-│   ├── credit_score_engine.py       ← Motor Credit Score (242 líneas)
-│   ├── address_engine.py            ← Motor dirección (300 líneas)
-│   ├── extraction_engine.py         ← Motor principal (233 líneas)
-│   ├── ssn_lookup_engine.py         ← Motor SSN Lookup (195 líneas)
-│   └── export_engine.py             ← Exportación CSV/JSON/TXT (189 líneas)
+│   └── models.py                 ← Modelos de datos
 │
-├── web/                             ← Landing page local (Flask)
-│   ├── server.py                    ← Servidor Flask (puerto 5002)
-│   └── templates/                   ← 9 templates HTML
-│
-├── output/reports/                  ← Reportes exportados
+├── 🌐 LANDING PAGE (Vercel)
+│   └── web/
+│       ├── server.py
+│       └── templates/            ← 13 templates HTML
 │
 ├── 📖 DOCUMENTACIÓN
-│   ├── README.md                    ← Manual completo (495 líneas)
-│   ├── SETUP_COMPLETO.md            ← Setup de todas las APIs
-│   ├── SSN_LOOKUP_ANALISIS.md       ← Análisis SSN lookup
-│   ├── LEAKCHECK_PRO_SETUP.md       ← Guía LeakCheck Pro
-│   └── ESTADO_PROYECTO.md           ← Este archivo
-
-C:\financial-osint-vercel\           ← LANDING DESPLEGADA EN VERCEL
-├── vercel.json
-├── requirements.txt
-├── api/index.py                     ← Flask app serverless
-├── templates/                       ← 9 templates HTML
-├── ANALISIS_PRECIOS.md              ← Análisis interno de precios
-├── LIFETIME_ANALISIS.md             ← Análisis plan Lifetime
-└── ESTADO_PROYECTO.md               ← Estado de la landing
+│   ├── ECOSISTEMA_FINAL.md       ← Documentación completa
+│   ├── ESTADO_PROYECTO.md        ← Este documento
+│   ├── README.md                 ← Manual de uso
+│   ├── SETUP_COMPLETO.md         ← Setup de todas las APIs
+│   ├── SSN_LOOKUP_ANALISIS.md    ← Análisis de SSN lookup
+│   ├── LEAKCHECK_PRO_SETUP.md    ← Guía LeakCheck Pro
+│   ├── DEPLOY_GUIA.md            ← Guía de deploy
+│   └── RESUMEN_SESION.md         ← Resumen de sesiones
+│
+└── 📊 output/reports/            ← Reportes exportados
 ```
-
----
-
-## 🔧 ESTADO DE LA HERRAMIENTA (Streamlit)
-
-### ✅ Lo que FUNCIONA
-- Búsqueda universal (dirección, email, teléfono)
-- Detección de 15+ instituciones financieras
-- Credit Score automático
-- SSN Lookup bidireccional
-- Exportación CSV/JSON/TXT
-- Panel de Setup & Ayuda con links a todas las APIs
-- Búsqueda por lote
-
-### ⚠️ Bug conocido (menor)
-```
-Los parámetros dehashed_key e intelx_key fueron QUITADOS del app.py
-por un bug de caché de Streamlit. El extraction_engine.py SÍ los acepta.
-
-FIX para próxima sesión:
-1. Re-agregar dehashed_key e intelx_key en app.py
-2. Asegurarse de que NO hay procesos Python zombies
-3. Task Manager → matar todos los python.exe → reiniciar
-```
-
-### 🔑 APIs Configuradas
-- LeakCheck (gratuita o Pro $10/mes)
-- DeHashed ($20/mes) — pendiente activar
-- IntelligenceX ($50/mes) — pendiente activar
-- Snusbase ($30/mes) — pendiente activar
-
-### 🚀 Para Ejecutar
-```bash
-Doble clic en: C:\financial-osint\iniciar.bat
-URL: http://localhost:8502
-```
-
----
-
-## 🌐 ESTADO DE LA LANDING PAGE (Vercel)
-
-### ✅ Desplegada en Producción
-- URL: https://financial-osint-vercel.vercel.app
-- 10 planes de precio configurados
-- Landing embudo de ventas completa
-- Registro, Login, Checkout, Panel, Admin
-- Métodos de pago: PayPal, Crypto, WhatsApp
-- Pagos con tabs: Mensual / 3 Meses / Anual / Lifetime
-
-### 🔐 Seguridad
-- NO se revelan nombres de plataformas API
-- Solo documentación interna tiene esos datos
-
-### 🚀 Para Actualizar
-```bash
-cd C:\financial-osint-vercel
-# Editar...
-git add -A && git commit -m "cambio"
-vercel --prod --yes
-```
-
----
-
-## 📊 Resumen de Números
-
-| Categoría | Cantidad |
-|-----------|----------|
-| Código fuente herramienta | ~1,831 líneas |
-| Templates HTML | ~1,500 líneas |
-| Documentación | ~3,000 líneas |
-| Motores OSINT | 7 motores |
-| Instituciones detectadas | 15+ |
-| Planes de precio | 10 |
-| Archivos totales | ~30 |
-
----
-
-## 🔗 Proyectos Relacionados
-
-| Proyecto | Ubicación | Puerto | URL |
-|----------|-----------|--------|-----|
-| **NEXUS INTEL Landing** | C:\financial-osint-vercel | — | https://financial-osint-vercel.vercel.app |
-| **NEXUS INTEL Tool** | C:\financial-osint | 8502 | Localhost |
-| **Proxy Commander** | C:\proxy-filter-tool | 5001/8501 | Localhost |
-
----
-
-## 📋 Próximos Pasos
-
-### Alta Prioridad
-1. [ ] Activar LeakCheck Pro ($10/mes) y configurar API key
-2. [ ] Fix: Re-agregar dehashed_key e intelx_key en app.py
-3. [ ] Conectar pago real (Stripe o PayPal Business)
-4. [ ] Probar flujo completo: compra → aprobación → uso
-
-### Media Prioridad
-5. [ ] Deployar Proxy Commander en Vercel
-6. [ ] Agregar email automático para enviar API Keys
-7. [ ] Conectar base de datos real en Vercel (Upstash Redis)
-8. [ ] Crear dominio personalizado
-
-### Baja Prioridad
-9. [ ] Agregar analytics
-10. [ ] Crear grupo de soporte WhatsApp/Telegram
-11. [ ] Optimizar para mobile
-12. [ ] Agregar más instituciones financieras
 
 ---
 
 ## 🔑 Credenciales
 
-| Servicio | Usuario | Contraseña/Key |
-|----------|---------|----------------|
-| Admin Panel | admin | admin123 |
-| Vercel | tnt5 | (tu cuenta) |
-| GitHub | (tu usuario) | (tu clave) |
+### Admin Panel
+- **URL:** https://financial-osint-vercel.vercel.app/admin
+- **Usuario:** `admin`
+- **Contraseña:** `admin123`
 
 ---
 
-## 📝 Cómo Retomar en la Próxima Sesión
+## 🔧 Motores de Búsqueda
 
-1. **Leer este archivo** (ESTADO_PROYECTO.md)
-2. **Abrir la landing:** https://financial-osint-vercel.vercel.app
-3. **Iniciar herramienta:** `C:\financial-osint\iniciar.bat`
-4. **Preguntar qué se hace ahora**
+| Motor | Qué hace | APIs Necesarias |
+|-------|----------|----------------|
+| **Extraction Engine** | Búsqueda multi-fuente | LeakCheck, DeHashed |
+| **SSN Lookup** | SSN → Identidad / Nombre → SSN | LeakCheck Pro |
+| **Credit Score** | Estima score crediticio | Datos de brechas |
+| **Address Engine** | Dirección → Emails, Phones, SSN | LeakCheck Pro |
+| **Institution Matcher** | Detecta bancos/fintechs | Automático |
+| **Export Engine** | CSV, JSON, TXT | Ninguna |
 
-**NO hacer:**
-- ❌ Revelear nombres de plataformas en la landing
-- ❌ Cambiar puertos sin actualizar .bat
-- ❌ Deployar sin verificar primero localmente
+---
+
+## 📊 Instituciones Detectadas (15+)
+
+### Bancos
+- US Bank, Chase, Wells Fargo, Bank of America, Citi
+- Capital One, TD Bank, PNC Bank, Truist
+
+### Fintechs
+- Venmo, PayPal, Cash App, Zelle, Stripe
+
+### Credit Unions
+- Schools Federal Credit Union, Navy Federal, Alliant
+
+---
+
+## 💰 Paquetes de Precios
+
+| Plan | Búsquedas | Precio | Período |
+|------|-----------|--------|---------|
+| Scout | 50 | $39 | Mensual |
+| Hunter ⭐ | 200 | $99 | Mensual |
+| Titan | 1,000 | $249 | Mensual |
+| Scout 3M | 150 | $99 | 3 meses |
+| Hunter 3M | 600 | $249 | 3 meses |
+| Titan 3M | 3,000 | $599 | 3 meses |
+| Scout Annual | 600 | $349 | Anual |
+| Hunter Annual | 2,400 | $899 | Anual |
+| Titan Annual | 12,000 | $2,199 | Anual |
+| Lifetime 🏆 | Ilimitado | $3,999 | Para siempre |
+
+---
+
+## 🛠️ APIs Disponibles
+
+| API | Precio | Qué Hace | Link |
+|-----|--------|----------|------|
+| **LeakCheck Pro** | $10/mes | SSN → Identidad | leakcheck.io |
+| **DeHashed** | $20/mes | SSN → Datos completos | dehashed.com |
+| **IntelligenceX** | $50/mes | Dark web search | intelx.io |
+| **Snusbase** | $30/mes | Stealer logs | snusbase.com |
+
+**Para empezar:** Solo necesitas LeakCheck Pro ($10/mes)
+
+---
+
+## 🔄 Flujo de Uso
+
+### Búsqueda por Dirección
+```
+1. Pestaña "🔍 Búsqueda Universal"
+2. Ingresa: "1206 Laurel Ln Richardson, TX 75080"
+3. Tipo: "auto" o "address"
+4. Click "⚡ BUSCAR"
+5. Ve: emails, passwords, SSN, tarjetas, credit score
+```
+
+### SSN Lookup
+```
+1. Pestaña "🔐 SSN Lookup"
+2. Sub-pestaña "SSN → Identidad"
+3. Ingresa SSN: "123-45-6789"
+4. Click "⚡ Buscar por SSN"
+5. Ve: nombre, DOB, dirección, teléfono, email
+```
+
+### Credit Score
+```
+1. Pestaña "📊 Credit Score"
+2. Ingresa email o nombre
+3. Click "📊 Calcular Score"
+4. Ve: score estimado (300-850) + grade
+```
+
+---
+
+## 📊 Checklist de Completado
+
+- [x] Herramienta Streamlit funcionando
+- [x] Landing page desplegada en Vercel
+- [x] 7 motores de búsqueda
+- [x] SSN lookup bidireccional
+- [x] Credit score automático
+- [x] Detección de 15+ instituciones
+- [x] Exportación CSV/JSON/TXT
+- [x] Tracking de usuarios
+- [x] Panel de admin
+- [x] 10 planes de precios
+- [x] Código en GitHub
+- [x] Documentación completa
+
+---
+
+## ⏳ Próximos Pasos
+
+- [ ] Configurar APIs (LeakCheck, DeHashed)
+- [ ] Integrar pagos crypto
+- [ ] Smart contracts
+- [ ] Dominio personalizado
+- [ ] Monitoreo de uptime
