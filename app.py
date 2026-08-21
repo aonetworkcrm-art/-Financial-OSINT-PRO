@@ -186,7 +186,7 @@ with st.sidebar:
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "🔍 Búsqueda Universal",
     "🔐 SSN Lookup",
     "🗺️ Route & Account Finder",
@@ -194,6 +194,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💳 Credit Card Extractor",
     "🔎 Credit Card Analyzer",
     "📊 Credit Score",
+    "🔗 Mi Perfil Financiero",
     "📥 Exportar",
     "📖 Setup & Ayuda",
 ])
@@ -1579,9 +1580,228 @@ with tab6:
             except Exception as e:
                 st.error(f"Error: {e}")
 
-# ─── TAB 8: Exportar ────────────────────────────────────────
+# ─── TAB 8: Mi Perfil Financiero (Plaid Connect) ───────────
 
 with tab8:
+    st.markdown("## 🔗 Mi Perfil Financiero")
+    st.markdown(
+        "Conecta **TU banco** y mira todas tus cuentas, tarjetas, balances y transacciones en un solo lugar. "
+        "100% seguro — Plaid maneja toda la encriptación."
+    )
+
+    # ── Manual Interactivo ──
+    with st.expander("📖 ¿Cómo funciona? (Click para ver el manual)", expanded=False):
+        st.markdown("""
+        ### 🔗 Plaid Connect — Paso a Paso
+        
+        **¿Qué es Plaid?**
+        Plaid es un servicio que conecta apps financieras con bancos reales. Es el mismo usado por Venmo, Cash App y Robinhood.
+        
+        **¿Cómo funciona?**
+        
+        ```
+        TÚ haces click "Conectar Banco"
+              ↓
+        Plaid abre una ventana SEGURA
+              ↓
+        TÚ seleccionas tu banco (Chase, BofA, Wells, etc.)
+              ↓
+        TÚ pones tu usuario y contraseña del banco
+              ↓
+        Tu banco verifica tu identidad (2FA por SMS)
+              ↓
+        TÚ autorizas a esta app a ver tus datos
+              ↓
+        ¡LISTO! La app muestra tus cuentas y balances
+        ```
+        
+        **¿Qué datos podemos ver?**
+        | Dato | Ejemplo |
+        |------|---------|
+        | 💳 Tarjetas de crédito | Visa, Mastercard, Amex |
+        | 💰 Cuentas de débito | Checking, Savings |
+        | 📊 Balances | $4,520.80 disponibles |
+        | 🏦 Límites de crédito | $15,000 |
+        | 📈 Utilización | 15.4% |
+        | 📋 Transacciones | Starbucks -$4.50 |
+        
+        **⚠️ Importante:**
+        - **NUNCA** vemos tu contraseña — Plaid la encripta
+        - Puedes **desconectar** en cualquier momento
+        - Solo vemos datos que **TÚ autorizaste**
+        - Es **100% legal** — es como conectar tu banco en Venmo
+        
+        **🏦 Bancos soportados:** Chase, Bank of America, Wells Fargo, Citi, Capital One, US Bank, PNC, TD Bank, Navy Federal, Schwab, Fidelity, Robinhood, Venmo, Cash App, PayPal y 12,000+ más.
+        """)
+
+    # ── Connection Status ──
+    from engines.plaid_connect import PlaidConnectEngine
+    plaid = PlaidConnectEngine(env="sandbox")
+    
+    user_id = st.session_state.get("user_email", "demo_user")
+    
+    if user_id in plaid.profiles:
+        # ── Already Connected ──
+        profile = plaid.profiles[user_id]
+        st.success(f"✅ Conectado a **{profile.institution_name}** desde {profile.connected_at[:10]}")
+        
+        # ── Summary Cards ──
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("💰 Balance Total", f"${profile.total_balance:,.2f}")
+        with c2:
+            st.metric("💳 Tarjetas", str(profile.cards_count))
+        with c3:
+            st.metric("📊 Utilización", f"{profile.credit_utilization}%")
+        with c4:
+            st.metric("🏦 Bancos", str(len(set(a.institution_name for a in profile.accounts if hasattr(a, 'institution_name')))))
+        
+        # ── Accounts ──
+        st.markdown("### 💳 Cuentas Conectadas")
+        for acc in profile.accounts:
+            icon = "💳" if acc.account_type == "credit" else "💰" if acc.account_type == "depository" else "📈"
+            balance_str = f"${acc.balance_current:,.2f}"
+            available_str = f"${acc.balance_available:,.2f}" if acc.balance_available else "N/A"
+            limit_str = f"${acc.balance_limit:,.2f}" if acc.balance_limit else "N/A"
+            
+            with st.container():
+                col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+                with col1:
+                    st.markdown(f"**{icon} {acc.name}**")
+                    st.caption(f"{acc.account_type.title()} | {acc.subtype.title() if acc.subtype else ''} | ****{acc.mask}")
+                with col2:
+                    st.metric("Balance", balance_str)
+                with col3:
+                    st.metric("Disponible", available_str)
+                with col4:
+                    if acc.balance_limit:
+                        st.metric("Límite", limit_str)
+                st.divider()
+        
+        # ── Transactions ──
+        st.markdown("### 📋 Últimas Transacciones")
+        for tx in profile.transactions[:20]:
+            emoji = "🔴" if tx.amount < 0 else "🟢"
+            st.markdown(f"{emoji} **{tx.date}** — {tx.name} — **${tx.amount:,.2f}**")
+        
+        # ── Actions ──
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Actualizar Datos"):
+                with st.spinner("Actualizando..."):
+                    plaid.build_profile(user_id, profile.institution_name, profile.institution_id)
+                    st.success("✅ Datos actualizados")
+                    st.rerun()
+        with col2:
+            if st.button("🔌 Desconectar", type="secondary"):
+                plaid.disconnect(user_id)
+                st.success("✅ Banco desconectado")
+                st.rerun()
+        
+        # ── Export ──
+        st.markdown("### 📥 Exportar Perfil")
+        csv_data = plaid.export_profile_csv(user_id)
+        st.download_button(
+            "📄 Descargar CSV",
+            csv_data,
+            file_name=f"perfil_financiero_{user_id}.csv",
+            mime="text/csv"
+        )
+    else:
+        # ── Not Connected Yet ──
+        st.info("🔗 Conecta tu banco para ver tu perfil financiero completo")
+        
+        # ── Bank Selector ──
+        st.markdown("### 🏦 Selecciona tu banco")
+        bank_cols = st.columns(5)
+        for i, bank in enumerate(POPULAR_BANKS[:10]):
+            with bank_cols[i % 5]:
+                if st.button(f"{bank['logo']} {bank['name']}", key=f"bank_{bank['id']}"):
+                    st.session_state["selected_bank"] = bank
+        
+        # ── Demo Mode ──
+        st.markdown("---")
+        st.markdown("### 🧪 Modo Demo")
+        st.markdown(
+            "Si no tienes cuenta de Plaid, puedes probar con **datos de demostración**. "
+            "En producción, aquí aparecería el popup seguro de Plaid."
+        )
+        
+        if st.button("🧪 Cargar Datos Demo", type="primary"):
+            # Create demo profile
+            demo_profile = PlaidProfile(
+                user_id=user_id,
+                connected_at=datetime.now().isoformat(),
+                last_sync=datetime.now().isoformat(),
+                institution_name="Chase (Demo)",
+                institution_id="ins_3_demo",
+                accounts=[
+                    PlaidAccount(
+                        account_id="demo_001", name="Chase Sapphire Reserve",
+                        official_name="Chase Sapphire Reserve Credit Card",
+                        mask="4321", account_type="credit",
+                        subtype="credit card", balance_available=12660,
+                        balance_current=2340, balance_limit=15000,
+                        iso_currency_code="USD", bin_number="414720",
+                        network="Visa", card_level="Signature", country="US"
+                    ),
+                    PlaidAccount(
+                        account_id="demo_002", name="Chase Freedom Unlimited",
+                        official_name="Chase Freedom Unlimited Credit Card",
+                        mask="5678", account_type="credit",
+                        subtype="credit card", balance_available=6800,
+                        balance_current=1200, balance_limit=8000,
+                        iso_currency_code="USD", bin_number="414708",
+                        network="Visa", card_level="Platinum", country="US"
+                    ),
+                    PlaidAccount(
+                        account_id="demo_003", name="Chase Total Checking",
+                        official_name="Chase Total Checking Account",
+                        mask="7890", account_type="depository",
+                        subtype="checking", balance_available=4520.80,
+                        balance_current=4520.80, balance_limit=None,
+                        iso_currency_code="USD"
+                    ),
+                ],
+                transactions=[
+                    PlaidTransaction(transaction_id="tx_001", account_id="demo_001",
+                        date="2025-08-20", name="Starbucks", amount=-4.50,
+                        category=["Food and Drink", "Coffee Shop"],
+                        merchant_name="Starbucks", pending=False, iso_currency_code="USD"),
+                    PlaidTransaction(transaction_id="tx_002", account_id="demo_002",
+                        date="2025-08-20", name="Amazon", amount=-67.99,
+                        category=["Shopp ing", "Online"],
+                        merchant_name="Amazon", pending=False, iso_currency_code="USD"),
+                    PlaidTransaction(transaction_id="tx_003", account_id="demo_003",
+                        date="2025-08-19", name="Direct Deposit - Employer",
+                        amount=3200, category=["Income", "Paycheck"],
+                        merchant_name="Employer Inc", pending=False, iso_currency_code="USD"),
+                    PlaidTransaction(transaction_id="tx_004", account_id="demo_001",
+                        date="2025-08-19", name="Netflix", amount=-15.99,
+                        category=["Service", "Subscription"],
+                        merchant_name="Netflix", pending=False, iso_currency_code="USD"),
+                    PlaidTransaction(transaction_id="tx_005", account_id="demo_002",
+                        date="2025-08-18", name="Whole Foods Market", amount=-89.43,
+                        category=["Shopp ing", "Groceries"],
+                        merchant_name="Whole Foods", pending=False, iso_currency_code="USD"),
+                ],
+                total_balance=20860.80,
+                total_credit_limit=23000,
+                total_credit_balance=3540,
+                total_debit_balance=4520.80,
+                credit_utilization=15.4,
+                accounts_count=3,
+                cards_count=2,
+                access_token="demo_token_not_real",
+            )
+            plaid.profiles[user_id] = demo_profile
+            plaid._save_profile(demo_profile)
+            st.success("✅ Datos demo cargados")
+            st.rerun()
+
+# ─── TAB 9: Exportar ────────────────────────────────────────
+
+with tab9:
     st.markdown("## 📥 Exportar Resultados")
     if "last_result" in st.session_state:
         result = st.session_state["last_result"]
@@ -1608,9 +1828,9 @@ with tab8:
         for f in sorted(os.listdir("output/reports"), reverse=True)[:10]:
             st.markdown(f"📄 {f}")
 
-# ─── TAB 9: Setup & Ayuda ──────────────────────────────────
+# ─── TAB 10: Setup & Ayuda ─────────────────────────────────
 
-with tab9:
+with tab10:
     st.markdown("## 📖 Setup & Ayuda Completa")
     st.markdown("Configura todas las APIs y aprende a usar la herramienta")
 
@@ -2002,6 +2222,45 @@ PLAID_ENV = "sandbox"
 - ✅ Tipo de cuenta (checking/savings/credit)
 - ✅ Routing y account number reales (vía Plaid Auth)
 - ✅ Datos del titular (vía Plaid Identity)
+""")
+
+    with st.expander("🔗 Mi Perfil Financiero (Plaid Connect)"):
+        st.markdown("""
+**NUEVA FUNCIÓN:** Conecta TU propio banco y mira todo tu perfil financiero.
+
+### Cómo Funciona
+1. Ve a la pestaña **🔗 Mi Perfil Financiero**
+2. Click **🔌 Conectar Banco**
+3. Selecciona tu banco (Chase, BofA, Wells, etc.)
+4. Plaid abre una ventana SEGURA
+5. Pones tu usuario y contraseña del banco
+6. Tu banco verifica por SMS (2FA)
+7. Autorizas a la app a ver tus datos
+8. ¡LISTO! Ves todas tus cuentas y balances
+
+### Qué Puedes Ver
+- 💳 Todas tus tarjetas (crédito + débito)
+- 💰 Balances actuales en tiempo real
+- 📊 Límites de crédito y utilización
+- 📋 Últimas transacciones
+- 📥 Exportar todo a CSV
+
+### Seguridad
+- ✅ Plaid encripta todo (256-bit)
+- ✅ NUNCA vemos tu contraseña
+- ✅ Puedes desconectar en cualquier momento
+- ✅ 100% legal (como conectar tu banco en Venmo)
+
+### Bancos Soportados
+Chase, Bank of America, Wells Fargo, Citi, Capital One, US Bank, PNC, TD Bank, Navy Federal, Schwab, Fidelity, Robinhood, Venmo, Cash App, PayPal y 12,000+ más.
+
+### Costo
+- Sandbox: Gratis (100 connects/mes)
+- Development: $0.30/request
+- Production: $0.30/request
+
+### Modo Demo
+Si no tienes cuenta de Plaid, puedes probar con **datos de demostración** que simulan un perfil financiero real.
 """)
 
     st.markdown("---")
