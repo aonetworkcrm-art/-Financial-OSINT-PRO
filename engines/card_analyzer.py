@@ -194,6 +194,12 @@ class CardAnalysis:
     card_type: str = ""         # credit, debit, prepaid
     card_level: str = ""        # Classic, Gold, Platinum, Signature, Infinite
     
+    # VBV / 3D Secure
+    is_vbv: Optional[bool] = None  # True=VBV, False=NON-VBV, None=unknown
+    vbv_status: str = ""           # VBV_ENROLLED, NON_VBV, UNKNOWN
+    vbv_provider: str = ""         # Verified by Visa, SecureCode, etc.
+    vbv_reason: str = ""
+    
     # Validation
     is_valid_luhn: bool = False
     is_valid_length: bool = False
@@ -310,6 +316,27 @@ class CardAnalyzer:
             result.checks_passed.append("Algoritmo de Luhn válido")
         else:
             result.checks_failed.append("Falló validación Luhn")
+
+        # 5. VBV / 3D Secure Detection
+        try:
+            from engines.vbv_engine import VBVEngine
+            vbv = VBVEngine()
+            vbv_result = vbv.detect(
+                card_number=clean,
+                network=result.network,
+                card_type=result.card_type,
+                issuing_bank=result.issuing_bank,
+            )
+            result.is_vbv = vbv_result.is_vbv
+            result.vbv_status = vbv_result.vbv_status
+            result.vbv_provider = vbv_result.vbv_provider
+            result.vbv_reason = vbv_result.reason
+            if vbv_result.vbv_status == "NON_VBV":
+                result.checks_passed.append(f"NON-VBV detectado: {vbv_result.reason}")
+            elif vbv_result.vbv_status == "VBV_ENROLLED":
+                result.checks_passed.append(f"VBV/3DS: {vbv_result.vbv_provider}")
+        except ImportError:
+            pass
         
         # 5. Overall status
         if result.is_valid_luhn and result.is_valid_length:

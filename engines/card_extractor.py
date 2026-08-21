@@ -117,6 +117,12 @@ class ExtractedCard:
     card_type: str = ""        # credit/debit/prepaid
     card_level: str = ""       # Classic/Gold/Platinum/Signature
 
+    # VBV / 3D Secure
+    is_vbv: Optional[bool] = None
+    vbv_status: str = ""       # VBV_ENROLLED, NON_VBV, UNKNOWN
+    vbv_provider: str = ""     # Verified by Visa, SecureCode, etc.
+    vbv_reason: str = ""
+
     # Luhn
     is_valid_luhn: bool = False
 
@@ -489,6 +495,23 @@ class CardExtractor:
 
         # Luhn
         card.is_valid_luhn = self._luhn(clean)
+
+        # VBV Detection
+        try:
+            from engines.vbv_engine import VBVEngine
+            vbv = VBVEngine()
+            vbv_result = vbv.detect(
+                card_number=clean,
+                network=card.network,
+                card_type=card.card_type,
+                issuing_bank=card.issuing_bank,
+            )
+            card.is_vbv = vbv_result.is_vbv
+            card.vbv_status = vbv_result.vbv_status
+            card.vbv_provider = vbv_result.vbv_provider
+            card.vbv_reason = vbv_result.reason
+        except ImportError:
+            pass
 
     def _detect_network(self, card: str) -> str:
         if not card:

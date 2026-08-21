@@ -471,6 +471,14 @@ with tab3:
         key="route_mode",
     )
 
+    # VBV Filter
+    filter_vbv = st.checkbox(
+        "🔓 Filtrar solo NON-VBV (sin 3D Secure)",
+        value=False,
+        key="filter_vbv_route",
+        help="Muestra solo tarjetas que NO requieren autenticación 3D Secure",
+    )
+
     # ════════════════════════════════════════════════════════════
     # MODO 1: Búsqueda Individual
     # ════════════════════════════════════════════════════════════
@@ -584,11 +592,45 @@ with tab3:
                 for a in r.accounts:
                     st.markdown(f"- 💼 `{a}`")
 
-            # Credit Cards
+            # Credit Cards with VBV filter
             if r.credit_cards:
-                st.markdown(f"#### 💳 Tarjetas de Crédito ({len(r.credit_cards)})")
-                for cc in r.credit_cards:
-                    st.markdown(f'<div class="password-card">💳 <code>{cc}</code></div>', unsafe_allow_html=True)
+                display_cards = r.credit_cards
+                if filter_vbv:
+                    # Apply NON-VBV filter
+                    from engines.vbv_engine import VBVEngine
+                    vbv_eng = VBVEngine()
+                    filtered = []
+                    for cc in display_cards:
+                        # Detect VBV status for each card
+                        cc_clean = re.sub(r'[^0-9]', '', cc)
+                        if len(cc_clean) >= 6:
+                            vbv_r = vbv_eng.detect(cc_clean)
+                            if vbv_r.vbv_status == "NON_VBV":
+                                filtered.append(cc)
+                    display_cards = filtered
+                    if not display_cards:
+                        st.info("🔓 No se encontraron tarjetas NON-VBV en los resultados")
+                    else:
+                        st.markdown(f"#### 💳 Tarjetas NON-VBV ({len(display_cards)})")
+                else:
+                    st.markdown(f"#### 💳 Tarjetas de Crédito ({len(display_cards)})")
+                for cc in display_cards:
+                    # Show VBV status
+                    cc_clean = re.sub(r'[^0-9]', '', cc)
+                    vbv_icon = "🔒"
+                    if len(cc_clean) >= 6:
+                        try:
+                            from engines.vbv_engine import VBVEngine
+                            vbv_r = VBVEngine().detect(cc_clean)
+                            if vbv_r.vbv_status == "NON_VBV":
+                                vbv_icon = "🔓"
+                            elif vbv_r.vbv_status == "VBV_ENROLLED":
+                                vbv_icon = "🔒"
+                            else:
+                                vbv_icon = "❓"
+                        except ImportError:
+                            pass
+                    st.markdown(f'<div class="password-card">{vbv_icon} <code>{cc}</code></div>', unsafe_allow_html=True)
 
             # Passwords
             if r.passwords:
@@ -1030,6 +1072,14 @@ with tab5:
         key="ext_mode",
     )
 
+    # VBV Filter
+    ext_filter_vbv = st.checkbox(
+        "🔓 Filtrar solo NON-VBV (sin 3D Secure)",
+        value=False,
+        key="ext_filter_vbv",
+        help="Muestra solo tarjetas que NO requieren autenticación 3D Secure",
+    )
+
     # ════════════════════════════════════════════════════════════
     # MODO 1: Individual
     # ════════════════════════════════════════════════════════════
@@ -1080,9 +1130,37 @@ with tab5:
             sm4.metric("📋 Brechas", len(r.breach_sources))
 
             if r.cards_found:
-                st.markdown(f"### 💳 {len(r.cards_found)} Tarjetas Encontradas")
+                # Apply NON-VBV filter if enabled
+                display_cards = r.cards_found
+                if ext_filter_vbv:
+                    from engines.vbv_engine import VBVEngine
+                    vbv_eng_ext = VBVEngine()
+                    filtered = []
+                    for c in r.cards_found:
+                        if c.vbv_status == "NON_VBV":
+                            filtered.append(c)
+                    display_cards = filtered
+                    if not display_cards:
+                        st.info("🔓 No se encontraron tarjetas NON-VBV en los resultados")
+                    else:
+                        st.markdown(f"### 🔓 {len(display_cards)} Tarjetas NON-VBV")
+                else:
+                    st.markdown(f"### 💳 {len(display_cards)} Tarjetas Encontradas")
 
-                for i, card in enumerate(r.cards_found, 1):
+                for i, card in enumerate(display_cards, 1):
+                    # VBV status
+                    vbv_icon = "🔒"
+                    vbv_text = "VBV"
+                    vbv_color = "#00c853"
+                    if card.vbv_status == "NON_VBV":
+                        vbv_icon = "🔓"
+                        vbv_text = "NON-VBV"
+                        vbv_color = "#e94560"
+                    elif card.vbv_status == "UNKNOWN":
+                        vbv_icon = "❓"
+                        vbv_text = "?"
+                        vbv_color = "#ffd700"
+
                     # Card banner
                     net_colors = {'Visa': '#1A1F71', 'Mastercard': '#EB001B', 'Amex': '#006FCF', 'Discover': '#FF6000'}
                     nc = net_colors.get(card.network, '#333')
@@ -1093,6 +1171,7 @@ with tab5:
                         '<span style="color:rgba(255,255,255,0.8);margin-left:12px;">' + (card.issuing_bank or 'Banco no identificado') + '</span>'
                         '<span style="color:rgba(255,255,255,0.6);margin-left:8px;">(' + (card.card_type or '') + ' ' + (card.card_level or '') + ')</span>'
                         '<span style="color:rgba(255,255,255,0.5);margin-left:8px;">' + (card.bank_country_name or card.bank_country or '') + '</span>'
+                        '<span style="background:' + vbv_color + ';color:#fff;padding:2px 8px;border-radius:6px;margin-left:8px;font-size:0.8rem;font-weight:700;">' + vbv_icon + ' ' + vbv_text + '</span>'
                         '<span style="float:right;">' + ('✅' if card.is_valid_luhn else '❌') + ' Luhn</span>'
                         '</div>',
                         unsafe_allow_html=True,
@@ -1362,6 +1441,25 @@ with tab6:
                 unsafe_allow_html=True,
             )
 
+            # VBV / 3D Secure Status
+            vbv_colors = {"VBV_ENROLLED": "#00c853", "NON_VBV": "#e94560", "UNKNOWN": "#ffd700"}
+            vbv_icons = {"VBV_ENROLLED": "🔒", "NON_VBV": "🔓", "UNKNOWN": "❓"}
+            vbv_texts = {"VBV_ENROLLED": "VBV — 3D Secure Activo", "NON_VBV": "NON-VBV — Sin 3D Secure", "UNKNOWN": "Estado Desconocido"}
+            vbv_c = vbv_colors.get(c.vbv_status, '#888')
+            vbv_i = vbv_icons.get(c.vbv_status, '?')
+            vbv_t = vbv_texts.get(c.vbv_status, 'Desconocido')
+            vbv_prov = c.vbv_provider or ''
+            vbv_prov_str = f' ({vbv_prov})' if vbv_prov else ''
+            st.markdown(
+                '<div style="background:' + vbv_c + '22;border:2px solid ' + vbv_c + ';border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">'
+                '<span style="font-size:1.5rem;">' + vbv_i + '</span>'
+                '<span style="font-size:1.3rem;font-weight:800;color:' + vbv_c + ';margin-left:8px;">' + vbv_t + vbv_prov_str + '</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            if c.vbv_reason:
+                st.caption(f"📝 {c.vbv_reason}")
+
             # Info grid
             ig1, ig2, ig3, ig4 = st.columns(4)
             ig1.metric("🏦 Banco Emisor", c.issuing_bank or "No identificado")
@@ -1371,10 +1469,11 @@ with tab6:
 
             # Validation checks
             st.markdown("### 📋 Checks de Validación")
-            cv1, cv2, cv3 = st.columns(3)
+            cv1, cv2, cv3, cv4 = st.columns(4)
             cv1.metric("✅ Luhn", "Válido" if c.is_valid_luhn else "Inválido")
             cv2.metric("📏 Longitud", "OK" if c.is_valid_length else "Inválida")
             cv3.metric("🔢 BIN", "Identificado" if c.is_valid_bin else "No encontrado")
+            cv4.metric("🔓 VBV", "NON-VBV" if c.vbv_status == "NON_VBV" else "VBV" if c.vbv_status == "VBV_ENROLLED" else "?")
 
             if c.checks_passed:
                 with st.expander(f"✅ Checks pasados ({len(c.checks_passed)})"):
@@ -1791,6 +1890,50 @@ Resultado:
 3. Ingresa: `4532015112030367`
 4. Click **⚡ ANALIZAR TARJETA**
 5. Ve: 🟦 Visa — Chase — Gold — US — ✅ Válida
+""")
+
+    with st.expander("🔒 Filtro NON-VBV / 3D Secure"):
+        st.markdown("""
+**Qué es VBV (Verified by Visa)?**
+
+VBV es el sistema de autenticación 3D Secure de Visa. Cada red tiene su equivalente:
+- **Visa:** Verified by Visa (VBV)
+- **Mastercard:** Mastercard SecureCode
+- **Amex:** American Express SafeKey
+- **Discover:** Discover ProtectBuy
+
+**Qué es NON-VBV?**
+Una tarjeta **NON-VBV** es aquella que **NO** requiere autenticación 3D Secure para compras online.
+Esto significa que la tarjeta puede usarse sin verificación adicional.
+
+### Detección
+El motor detecta el estado VBV/NON-VBV mediante:
+1. **BIN Database** → Mayor confianza (85%) — BINs conocidos
+2. **Card Type** → Débito/Prepaid = generalmente NON-VBV (60%)
+3. **Network Default** → Cada red tiene protocolo por defecto (50%)
+
+### Filtros Disponibles
+- **🗺️ Route & Account Finder:** Checkbox "Filtrar solo NON-VBV"
+- **💳 Credit Card Extractor:** Checkbox "Filtrar solo NON-VBV"
+- **🔎 Credit Card Analyzer:** Muestra badge VBV/NON-VBV en cada tarjeta
+
+### Ejemplo
+```
+Entrada: user@email.com
+Motor: 💳 Credit Card Extractor + Filtro NON-VBV
+
+Resultado:
+🔓 4532****0367 | 🟦 Visa | Chase Débito | NON-VBV
+🔓 5302****0301 | 🟧 Mastercard | Venmo Prepago | NON-VBV
+
+(Solo muestra tarjetas sin 3D Secure)
+```
+
+### Limitaciones
+- El estado VBV NO es 100% determinístico solo con el BIN
+- Depende del banco emisor, tipo de tarjeta y configuración individual
+- Para verificación exacta se necesitaría contactar al banco
+- La base de datos cubre ~80% de los BINs conocidos
 """)
 
     with st.expander("🔐 Búsqueda por SSN"):
