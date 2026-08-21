@@ -15,6 +15,7 @@ from engines.institution_matcher import INSTITUTIONS
 from engines.credit_score_engine import CreditScoreEngine
 from engines.export_engine import ExportEngine
 from engines.route_account_engine import RouteAccountEngine, SearchField
+from engines.account_validator import AccountValidator, BatchValidation
 
 # Import user tracker
 try:
@@ -182,10 +183,11 @@ with st.sidebar:
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔍 Búsqueda Universal",
     "🔐 SSN Lookup",
     "🗺️ Route & Account Finder",
+    "🏦 Validador de Cuentas",
     "📊 Credit Score",
     "📥 Exportar",
     "📖 Setup & Ayuda",
@@ -826,9 +828,184 @@ with tab4:
                 else:
                     st.warning("No se encontraron datos financieros")
 
-# ─── TAB 5: Exportar ────────────────────────────────────────
+# ─── TAB 4B: Validador de Cuentas ───────────────────────────
 
-with tab5:
+with tab4:
+    st.markdown("## 🏦 Validador de Cuentas Bancarias")
+    st.markdown(
+        "Valida **routing numbers**, **números de tarjeta** y **cuentas bancarias**. "
+        "Verifica checksum ABA, algoritmo de Luhn, BIN lookup y reglas de formato."
+    )
+
+    validator = AccountValidator()
+
+    val_mode = st.radio(
+        "Modo",
+        ["🔍 Validar Individual", "📁 Lote (textarea)", "📄 Subir CSV"],
+        horizontal=True,
+        key="val_mode",
+    )
+
+    if val_mode.startswith("🔍"):
+        val_input = st.text_input(
+            "Dato a validar",
+            placeholder="021000021 (routing)  •  4532015112030367 (card)  •  123-45-6789 (SSN)",
+            key="val_single",
+        )
+        val_type = st.selectbox("Tipo", ["auto", "routing", "card", "account", "ssn"], key="val_single_type")
+
+        if st.button("⚡ VALIDAR", type="primary", use_container_width=True, key="btn_val_single"):
+            if val_input.strip():
+                with st.spinner("Validando..."):
+                    v = validator.validate(val_input, val_type)
+                    st.session_state["val_last"] = v
+
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "validate", {
+                            "input": val_input[:50],
+                            "type": v.input_type,
+                            "status": v.status,
+                        })
+
+        if "val_last" in st.session_state:
+            v = st.session_state["val_last"]
+            st.markdown("---")
+
+            # Status badge
+            status_colors = {"valid": "#00c853", "invalid": "#e94560", "suspicious": "#ffd700", "unknown": "#888"}
+            status_emojis = {"valid": "✅", "invalid": "❌", "suspicious": "⚠️", "unknown": "❓"}
+            sc = status_colors.get(v.status, "#888")
+            se = status_emojis.get(v.status, "?")
+            st.markdown(f'<div style="background:{sc}22;border:2px solid {sc};border-radius:12px;padding:20px;text-align:center;">'
+                        f'<span style="font-size:2rem;">{se}</span><br>'
+                        f'<span style="font-size:1.5rem;font-weight:800;color:{sc};">{v.status.upper()}</span><br>'
+                        f'<span style="color:#888;">{v.status_detail}</span></div>',
+                        unsafe_allow_html=True)
+
+            # Metrics
+            vc1, vc2, vc3, vc4 = st.columns(4)
+            vc1.metric("Tipo", v.input_type.upper())
+            vc2.metric("Confianza", f"{v.confidence:.0%}")
+            vc3.metric("Checks OK", len(v.checks_passed))
+            vc4.metric("Fallas", len(v.checks_failed))
+
+            # Routing info
+            if v.routing_number:
+                st.markdown(f"**🔢 Routing:** `{v.routing_number}`")
+                if v.routing_bank:
+                    st.markdown(f"**🏦 Banco:** {v.routing_bank}")
+                st.markdown(f"**📊 Estado:** {'🟢 Activo' if v.routing_active else '🔴 Inactivo/desconocido'}")
+
+            # Card info
+            if v.card_network:
+                st.markdown(f"**💳 Red:** {v.card_network}")
+            if v.card_bank:
+                st.markdown(f"**🏦 Banco:** {v.card_bank}")
+            if v.card_type:
+                st.markdown(f"**📋 Tipo:** {v.card_type}")
+            if v.card_last4:
+                st.markdown(f"**🔢 Últimos 4:** `{v.card_last4}`")
+
+            # SSN info
+            if v.ssn_area:
+                st.markdown(f"**🔑 SSN:** `{v.ssn_area}-{v.ssn_group}-{v.ssn_serial}`")
+
+            # Account info
+            if v.account_masked:
+                st.markdown(f"**💼 Cuenta:** `{v.account_masked}` ({v.account_length} dígitos)")
+
+            # Checks
+            if v.checks_passed:
+                with st.expander(f"✅ Checks pasados ({len(v.checks_passed)})"):
+                    for c in v.checks_passed:
+                        st.markdown(f"- ✅ {c}")
+            if v.checks_failed:
+                with st.expander(f"❌ Checks fallidos ({len(v.checks_failed)})"):
+                    for c in v.checks_failed:
+                        st.markdown(f"- ❌ {c}")
+            if v.warnings:
+                with st.expander(f"⚠️ Advertencias ({len(v.warnings)})"):
+                    for w in v.warnings:
+                        st.markdown(f"- ⚠️ {w}")
+
+    elif val_mode.startswith("📁"):
+        st.markdown("### 📁 Validación Masiva")
+        st.caption("Un routing, tarjeta o cuenta por línea. El motor detecta el tipo.")
+
+        val_batch_text = st.text_area(
+            "Datos a validar",
+            height=250,
+            placeholder="021000021\n4532015112030367\n123-45-6789\n9876543210",
+            key="val_batch_text",
+        )
+
+        if st.button("⚡ VALIDAR LOTE", type="primary", use_container_width=True, key="btn_val_batch"):
+            if val_batch_text.strip():
+                items = AccountValidator.parse_batch_input(val_batch_text)
+                with st.spinner(f"Validando {len(items)} items..."):
+                    batch = validator.validate_batch(items)
+                    st.session_state["val_batch"] = batch
+
+        if "val_batch" in st.session_state:
+            batch = st.session_state["val_batch"]
+            st.markdown(f"### 📊 Resultados: {batch.total} items — ✅ {batch.valid} válidos | ❌ {batch.invalid} inválidos | ⚠️ {batch.suspicious} sospechosos")
+
+            rows = []
+            for r in batch.results:
+                rows.append({
+                    "Input": r.input_value[:30],
+                    "Tipo": r.input_type,
+                    "Estado": r.status.upper(),
+                    "Confianza": f"{r.confidence:.0%}",
+                    "Banco": r.card_bank or r.routing_bank or "",
+                    "Red": r.card_network or "",
+                    "Detalle": r.status_detail[:60],
+                })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+            # Export
+            st.markdown("### 📥 Exportar")
+            vec1, vec2 = st.columns(2)
+            with vec1:
+                csv_d = AccountValidator.export_csv(batch)
+                st.download_button("📄 CSV", csv_d, "validation_results.csv", "text/csv", use_container_width=True)
+            with vec2:
+                json_d = AccountValidator.export_json(batch)
+                st.download_button("📋 JSON", json_d, "validation_results.json", "application/json", use_container_width=True)
+
+    elif val_mode.startswith("📄"):
+        st.markdown("### 📄 Subir CSV")
+        st.caption("Columnas esperadas: any column with routing/card/account/ssn data")
+        val_file = st.file_uploader("Sube CSV", type=["csv"], key="val_file")
+        if val_file:
+            try:
+                df = pd.read_csv(val_file)
+                st.dataframe(df.head(5), use_container_width=True)
+
+                # Try to find valid columns
+                all_vals = []
+                for col in df.columns:
+                    for val in df[col].dropna().astype(str):
+                        clean = re.sub(r'[^0-9-]', '', val)
+                        if 4 <= len(clean) <= 19:
+                            all_vals.append((clean, "auto"))
+
+                if all_vals:
+                    st.info(f"📋 {len(all_vals)} valores detectados para validación")
+                    if st.button("⚡ VALIDAR CSV", type="primary", key="btn_val_csv"):
+                        with st.spinner(f"Validando {len(all_vals)} items..."):
+                            batch = validator.validate_batch(all_vals[:500])  # Limit
+                            st.session_state["val_batch"] = batch
+                            st.rerun()
+                else:
+                    st.warning("No se detectaron datos válidos en el CSV")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+# ─── TAB 6: Exportar ────────────────────────────────────────
+
+with tab6:
     st.markdown("## 📥 Exportar Resultados")
     if "last_result" in st.session_state:
         result = st.session_state["last_result"]
@@ -855,9 +1032,9 @@ with tab5:
         for f in sorted(os.listdir("output/reports"), reverse=True)[:10]:
             st.markdown(f"📄 {f}")
 
-# ─── TAB 6: Setup & Ayuda ──────────────────────────────────
+# ─── TAB 7: Setup & Ayuda ──────────────────────────────────
 
-with tab6:
+with tab7:
     st.markdown("## 📖 Setup & Ayuda Completa")
     st.markdown("Configura todas las APIs y aprende a usar la herramienta")
 
