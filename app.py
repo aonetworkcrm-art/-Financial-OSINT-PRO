@@ -162,9 +162,12 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown("### 🔧 Motores Activos")
+    st.markdown("### 🔧 Motores")
     for key_p, portal in EXTRACTION_PORTALS.items():
-        st.markdown(f"✅ {portal['name']}")
+        if portal["status"] == "active":
+            st.markdown(f"✅ {portal['name']}")
+        else:
+            st.markdown(f"🔒 {portal['name']} — *requiere API key*")
 
     st.markdown("---")
     st.markdown("### 📖 Ayuda")

@@ -129,8 +129,13 @@ class ExtractionEngine:
 
 
 EXTRACTION_PORTALS = {
-    "leakcheck": {"name": "LeakCheck", "type": "breach", "status": "active"},
+    "leakcheck": {"name": "LeakCheck Pro", "type": "breach", "status": "active"},
     "xposedornot": {"name": "XposedOrNot", "type": "breach", "status": "active"},
+    "ssn_lookup": {"name": "SSN Lookup Bidireccional", "type": "identity", "status": "active"},
+    "address_engine": {"name": "Address Intelligence Engine", "type": "address", "status": "active"},
     "credit_score": {"name": "Credit Score Estimator", "type": "financial", "status": "active"},
-    "institution_matcher": {"name": "Institution Matcher", "type": "financial", "status": "active"},
+    "institution_matcher": {"name": "Institution Matcher (15+ bancos)", "type": "financial", "status": "active"},
+    "dehashed": {"name": "DeHashed", "type": "breach", "status": "pending"},
+    "intelx": {"name": "IntelligenceX Dark Web", "type": "darkweb", "status": "pending"},
+    "snusbase": {"name": "Snusbase Stealer Logs", "type": "stealer", "status": "pending"},
 }
