@@ -19,6 +19,7 @@ from engines.account_validator import AccountValidator, BatchValidation
 from engines.plaid_engine import PlaidEngine
 from engines.card_analyzer import CardAnalyzer, BatchCardAnalysis
 from engines.card_extractor import CardExtractor, SearchField as CardSearchField, BatchCardSearch
+from engines.plaid_connect import PlaidConnectEngine, POPULAR_BANKS, PlaidProfile, PlaidAccount, PlaidTransaction
 
 # Import user tracker
 try:
@@ -1635,7 +1636,6 @@ with tab8:
         """)
 
     # ── Connection Status ──
-    from engines.plaid_connect import PlaidConnectEngine
     plaid = PlaidConnectEngine(env="sandbox")
     
     user_id = st.session_state.get("user_email", "demo_user")
