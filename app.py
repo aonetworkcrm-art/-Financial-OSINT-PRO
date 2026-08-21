@@ -14,6 +14,7 @@ from engines.extraction_engine import ExtractionEngine, EXTRACTION_PORTALS
 from engines.institution_matcher import INSTITUTIONS
 from engines.credit_score_engine import CreditScoreEngine
 from engines.export_engine import ExportEngine
+from engines.route_account_engine import RouteAccountEngine, SearchField
 
 # Import user tracker
 try:
@@ -184,7 +185,7 @@ with st.sidebar:
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔍 Búsqueda Universal",
     "🔐 SSN Lookup",
-    "📁 Lote Masivo",
+    "🗺️ Route & Account Finder",
     "📊 Credit Score",
     "📥 Exportar",
     "📖 Setup & Ayuda",
@@ -439,48 +440,362 @@ with tab2:
                         st.warning("No se encontró SSN para esta búsqueda")
                         st.info("💡 Intenta con LeakCheck Pro o DeHashed para mejores resultados")
 
-# ─── TAB 3: Lote (Lote Masivo) ─────────────────────────────
+# ─── TAB 3: Route & Account Finder ──────────────────────────
 
-with tab2:
-    st.markdown("## 📁 Búsqueda Masiva por Lote")
-    lote = st.text_area(
-        "Una entrada por línea (direcciones, emails, teléfonos)",
-        height=200,
-        placeholder="1206 Laurel Ln Richardson, TX 75080\nuser@email.com\n+1-212-555-1234",
+with tab3:
+    st.markdown("## 🗺️ Route & Account Finder")
+    st.markdown(
+        "Motor unificado de extracción. Ingresa **un campo** o sube un **lote/CSV** y el motor cruza "
+        "múltiples fuentes para encontrar emails, teléfonos, SSN, rutas, cuentas bancarias, passwords, "
+        "credit cards y credit score asociados."
     )
 
-    if st.button("⚡ Ejecutar Lote", type="primary", use_container_width=True):
-        if lote.strip():
-            queries = [q.strip() for q in lote.strip().split("\n") if q.strip()]
-            progress = st.progress(0)
-            results_list = []
-            for i, q in enumerate(queries):
-                r = engine.full_search(q, "auto", institutions=selected_inst)
-                results_list.append(r)
-                progress.progress((i + 1) / len(queries))
-            st.session_state["lote_results"] = results_list
-            st.success(f"✅ {len(results_list)} consultas procesadas")
+    # --- Init engine ---
+    route_engine = RouteAccountEngine(
+        leakcheck_key=st.session_state.get("lc_key", os.environ.get("LEAKCHECK_API_KEY", "")),
+        dehashed_key=st.session_state.get("dh_key"),
+        intelx_key=st.session_state.get("ix_key"),
+    )
 
-    if "lote_results" in st.session_state:
-        rows = []
-        for r in st.session_state["lote_results"]:
-            for p in r.profiles:
-                cs = p.raw_data.get("credit_score", "") if p.raw_data else ""
+    route_mode = st.radio(
+        "Modo de búsqueda",
+        ["🔍 Búsqueda Individual", "📁 Lote (textarea)", "📄 Subir CSV/Excel"],
+        horizontal=True,
+        key="route_mode",
+    )
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 1: Búsqueda Individual
+    # ════════════════════════════════════════════════════════════
+    if route_mode.startswith("🔍"):
+        st.markdown("### 🔍 Búsqueda Individual")
+        st.caption("El motor detecta automáticamente el tipo de campo")
+
+        rc1, rc2 = st.columns([5, 1])
+        with rc1:
+            route_input = st.text_input(
+                "Campo de búsqueda",
+                placeholder="email@domain.com  •  +1-212-555-1234  •  123-45-6789  •  1206 Laurel Ln, TX 75080  •  John Smith  •  01/15/1990",
+                key="route_single",
+            )
+        with rc2:
+            route_type = st.selectbox(
+                "Tipo (auto=detecta)",
+                ["auto", "email", "phone", "ssn", "address", "name", "dob", "username", "domain"],
+                key="route_single_type",
+            )
+
+        if st.button("⚡ EXTRAER DATOS", type="primary", use_container_width=True, key="btn_route_single"):
+            if route_input.strip():
+                field = SearchField(
+                    field_type=route_type if route_type != "auto" else RouteAccountEngine._detect_field_type(route_input),
+                    value=route_input.strip(),
+                )
+                with st.spinner(f"⚡ Extrayendo datos de múltiples fuentes para: {field.field_type}..."):
+                    result = route_engine.search_single(field)
+                    st.session_state["route_last_result"] = result
+
+                    # Track
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "route_search", {
+                            "input": route_input[:100],
+                            "type": field.field_type,
+                            "total_data": result.total_data(),
+                        })
+
+        # --- Mostrar resultado individual ---
+        if "route_last_result" in st.session_state:
+            r = st.session_state["route_last_result"]
+            st.markdown("---")
+
+            # Metrics row
+            mc1, mc2, mc3, mc4, mc5, mc6 = st.columns(6)
+            mc1.metric("📧 Emails", len(r.emails))
+            mc2.metric("📱 Teléfonos", len(r.phones))
+            mc3.metric("👤 Nombres", len(r.names))
+            mc4.metric("🔑 SSN", len(r.ssns))
+            mc5.metric("🏦 Bancos", len(r.banks))
+            mc6.metric("🎯 Riesgo", f"{r.risk_score}/100")
+
+            # Credit Score
+            if r.credit_score:
+                gc = "score-excellent" if r.credit_score >= 740 else "score-good" if r.credit_score >= 670 else "score-fair" if r.credit_score >= 580 else "score-poor"
+                st.markdown(f'<div class="score-badge {gc}" style="font-size:2rem;">📊 Credit Score: {r.credit_score} — {r.credit_grade}</div>', unsafe_allow_html=True)
+
+            # Emails
+            if r.emails:
+                st.markdown(f"#### 📧 Emails ({len(r.emails)})")
+                for e in r.emails:
+                    inst_badges = ""
+                    for m in route_engine._get_matcher().match_email(e):
+                        inst_badges += f" <code>{m.institution}</code>"
+                    st.markdown(f'<div class="email-card">📧 <code>{e}</code>{inst_badges}</div>', unsafe_allow_html=True)
+
+            # Phones
+            if r.phones:
+                st.markdown(f"#### 📱 Teléfonos ({len(r.phones)})")
+                for p in r.phones:
+                    inst_badges = ""
+                    for m in route_engine._get_matcher().match_phone(p):
+                        inst_badges += f" <code>{m.institution}</code>"
+                    st.markdown(f'<div class="phone-card">📱 <code>{p}</code>{inst_badges}</div>', unsafe_allow_html=True)
+
+            # Names
+            if r.names:
+                st.markdown(f"#### 👤 Nombres ({len(r.names)})")
+                for n in r.names:
+                    st.markdown(f"- 👤 **{n}**")
+
+            # Addresses
+            if r.addresses:
+                st.markdown(f"#### 🏠 Direcciones ({len(r.addresses)})")
+                for a in r.addresses:
+                    st.markdown(f"- 📍 **{a}**")
+
+            # SSN
+            if r.ssns:
+                st.markdown(f"#### 🔑 SSN ({len(r.ssns)})")
+                for s in r.ssns:
+                    masked = f"***-**-{s[-4:]}" if len(s) >= 4 else "***-**-****"
+                    st.markdown(f"- 🔑 `{masked}`")
+
+            # DOB
+            if r.dobs:
+                st.markdown(f"#### 📅 Fecha de Nacimiento ({len(r.dobs)})")
+                for d in r.dobs:
+                    st.markdown(f"- 📅 `{d}`")
+
+            # Banks
+            if r.banks:
+                st.markdown(f"#### 🏦 Bancos / Instituciones ({len(r.banks)})")
+                for b in r.banks:
+                    st.markdown(f'<div class="inst-card">🏦 <strong>{b}</strong></div>', unsafe_allow_html=True)
+
+            # Accounts
+            if r.accounts:
+                st.markdown(f"#### 💼 Cuentas ({len(r.accounts)})")
+                for a in r.accounts:
+                    st.markdown(f"- 💼 `{a}`")
+
+            # Credit Cards
+            if r.credit_cards:
+                st.markdown(f"#### 💳 Tarjetas de Crédito ({len(r.credit_cards)})")
+                for cc in r.credit_cards:
+                    st.markdown(f'<div class="password-card">💳 <code>{cc}</code></div>', unsafe_allow_html=True)
+
+            # Passwords
+            if r.passwords:
+                st.markdown(f"#### 🔐 Passwords ({len(r.passwords)})")
+                for pw in r.passwords:
+                    st.markdown(f'<div class="password-card">🔑 <code>{pw}</code></div>', unsafe_allow_html=True)
+
+            # Breach sources
+            if r.breach_sources:
+                with st.expander(f"📋 Fuentes de Brechas ({len(r.breach_sources)})"):
+                    for b in r.breach_sources:
+                        st.markdown(f"- {b}")
+
+            # Institutions
+            if r.institutions:
+                with st.expander(f"🏛️ Instituciones detectadas ({len(r.institutions)})"):
+                    for inst in r.institutions:
+                        st.markdown(f"- 🏛️ **{inst['name']}** ({inst['type']}) — {inst['evidence']}")
+
+            # Sources & time
+            st.caption(f"Fuentes consultadas: {', '.join(r.sources_checked)}  |  Tiempo: {r.search_time_ms}ms")
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 2: Lote (textarea)
+    # ════════════════════════════════════════════════════════════
+    elif route_mode.startswith("📁"):
+        st.markdown("### 📁 Búsqueda Masiva")
+        st.caption("Un campo por línea. El motor detecta el tipo automáticamente.")
+
+        route_batch_text = st.text_area(
+            "Campos de búsqueda",
+            height=250,
+            placeholder="email@domain.com\n+1-212-555-1234\n123-45-6789\n1206 Laurel Ln Richardson, TX 75080\nJohn Smith\n01/15/1990",
+            key="route_batch_text",
+        )
+
+        route_workers = st.slider("Hilos paralelos", 1, 10, 5, key="route_workers")
+
+        if st.button("⚡ EJECutar LOTE", type="primary", use_container_width=True, key="btn_route_batch"):
+            if route_batch_text.strip():
+                fields = RouteAccountEngine.parse_batch_input(route_batch_text)
+                st.info(f"📋 {len(fields)} campos detectados")
+
+                progress = st.progress(0)
+                status_text = st.empty()
+
+                def route_progress(done, total):
+                    progress.progress(done / total)
+                    status_text.text(f"⚡ Procesando {done}/{total}...")
+
+                with st.spinner(f"⚡ Ejecutando {len(fields)} búsquedas en paralelo..."):
+                    batch = route_engine.search_batch(fields, max_workers=route_workers, on_progress=route_progress)
+                    st.session_state["route_batch_result"] = batch
+                    status_text.text(f"✅ Completado: {batch.total_queries} consultas, {batch.total_results} datos en {batch.total_time_ms}ms")
+
+                    # Track
+                    if HAS_TRACKER and st.session_state.get("tracker_user"):
+                        log_activity(st.session_state.tracker_user["id"], "route_batch", {
+                            "queries": batch.total_queries,
+                            "results": batch.total_results,
+                        })
+
+        # --- Mostrar resultados del lote ---
+        if "route_batch_result" in st.session_state:
+            batch = st.session_state["route_batch_result"]
+            st.markdown("---")
+            st.markdown(f"### 📊 Resultados: {batch.total_queries} consultas → {batch.total_results} datos ({batch.total_time_ms}ms)")
+
+            # Table
+            rows = []
+            for r in batch.results:
                 rows.append({
-                    "Query": r.request.query,
-                    "Nombre": p.name,
-                    "Emails": len(p.emails),
-                    "Teléfonos": len(p.phones),
-                    "SSN": "✅" if p.ssn else "❌",
-                    "Passwords": len(p.passwords),
-                    "Tarjetas": len(p.credit_cards),
-                    "Credit Score": cs,
-                    "Instituciones": ", ".join(i.institution for i in p.institutions),
-                    "Risk": p.risk_score,
+                    "Tipo": r.input_field,
+                    "Input": r.input_value[:50],
+                    "📧 Emails": len(r.emails),
+                    "📱 Phones": len(r.phones),
+                    "👤 Names": len(r.names),
+                    "🔑 SSN": len(r.ssns),
+                    "🏦 Banks": len(r.banks),
+                    "💳 Cards": len(r.credit_cards),
+                    "🔐 PW": len(r.passwords),
+                    "📊 Score": r.credit_score or "",
+                    "🎯 Risk": r.risk_score,
+                    "Fuentes": len(r.sources_checked),
+                    "ms": r.search_time_ms,
                 })
+            if rows:
+                df = pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True)
+
+            # Export buttons
+            st.markdown("### 📥 Exportar Resultados")
+            ec1, ec2, ec3 = st.columns(3)
+            with ec1:
+                csv_data = RouteAccountEngine.export_csv(batch)
+                st.download_button("📄 CSV", csv_data, "route_results.csv", "text/csv", use_container_width=True)
+            with ec2:
+                json_data = RouteAccountEngine.export_json(batch)
+                st.download_button("📋 JSON", json_data, "route_results.json", "application/json", use_container_width=True)
+            with ec3:
+                txt_data = RouteAccountEngine.export_txt(batch)
+                st.download_button("📝 TXT", txt_data, "route_results.txt", "text/plain", use_container_width=True)
+
+    # ════════════════════════════════════════════════════════════
+    # MODO 3: Subir CSV/Excel
+    # ════════════════════════════════════════════════════════════
+    elif route_mode.startswith("📄"):
+        st.markdown("### 📄 Subir Archivo CSV o Excel")
+        st.caption("El motor detecta columnas: email, phone, ssn, address, name, dob, username, domain")
+
+        uploaded_file = st.file_uploader(
+            "Sube tu archivo",
+            type=["csv", "xlsx", "xls"],
+            key="route_upload",
+        )
+
+        if uploaded_file:
+            try:
+                if uploaded_file.name.endswith(".csv"):
+                    content = uploaded_file.read().decode("utf-8", errors="ignore")
+                    fields = RouteAccountEngine.parse_csv(content)
+                    df_preview = pd.read_csv(uploaded_file)
+                    uploaded_file.seek(0)
+                else:
+                    df_preview = pd.read_excel(uploaded_file)
+                    # For Excel, convert to CSV for parsing
+                    import io as _io
+                    buf = _io.StringIO()
+                    df_preview.to_csv(buf, index=False)
+                    fields = RouteAccountEngine.parse_csv(buf.getvalue())
+
+                st.markdown(f"📋 **{len(df_preview)} filas** → **{len(fields)} campos detectados para búsqueda**")
+                st.dataframe(df_preview.head(10), use_container_width=True)
+
+                if fields:
+                    field_counts = {}
+                    for f in fields:
+                        field_counts[f.field_type] = field_counts.get(f.field_type, 0) + 1
+                    st.markdown("**Distribución de campos:**")
+                    fc1, fc2, fc3, fc4, fc5 = st.columns(5)
+                    for i, (ft, cnt) in enumerate(field_counts.items()):
+                        if i < 5:
+                            [fc1, fc2, fc3, fc4, fc5][i].metric(ft, cnt)
+
+                    route_workers_csv = st.slider("Hilos paralelos", 1, 10, 5, key="route_workers_csv")
+
+                    if st.button("⚡ EJECutar BATCH desde CSV", type="primary", use_container_width=True, key="btn_route_csv"):
+                        progress = st.progress(0)
+                        status_text = st.empty()
+
+                        def csv_progress(done, total):
+                            progress.progress(done / total)
+                            status_text.text(f"⚡ Procesando {done}/{total}...")
+
+                        with st.spinner(f"⚡ Ejecutando {len(fields)} búsquedas desde CSV..."):
+                            batch = route_engine.search_batch(fields, max_workers=route_workers_csv, on_progress=csv_progress)
+                            st.session_state["route_batch_result"] = batch
+                            status_text.text(f"✅ Completado: {batch.total_queries} consultas, {batch.total_results} datos")
+
+                            if HAS_TRACKER and st.session_state.get("tracker_user"):
+                                log_activity(st.session_state.tracker_user["id"], "route_csv_batch", {
+                                    "file": uploaded_file.name,
+                                    "queries": batch.total_queries,
+                                    "results": batch.total_results,
+                                })
+            except Exception as e:
+                st.error(f"Error leyendo archivo: {e}")
+
+        else:
+            st.info("📄 Arrastra un archivo CSV o Excel con tus datos")
+
+            # Template download
+            template = """email,phone,ssn,address,name,dob
+user@example.com,+1-212-555-1234,123-45-6789,1206 Laurel Ln Richardson TX 75080,John Smith,01/15/1990
+other@example.com,,987-65-4321,456 Oak Ave Dallas TX 75201,Jane Doe,03/22/1985"""
+            st.download_button("📥 Descargar template CSV", template, "template.csv", "text/csv")
+
+    # --- Resultados compartidos entre modos ---
+    if "route_batch_result" in st.session_state and not route_mode.startswith("🔍"):
+        batch = st.session_state["route_batch_result"]
+        st.markdown("---")
+        st.markdown(f"### 📊 Resumen del Lote: {batch.total_queries} consultas → {batch.total_results} datos")
+
+        # Table
+        rows = []
+        for r in batch.results:
+            rows.append({
+                "Tipo": r.input_field,
+                "Input": r.input_value[:50],
+                "📧 Emails": len(r.emails),
+                "📱 Phones": len(r.phones),
+                "👤 Names": len(r.names),
+                "🔑 SSN": len(r.ssns),
+                "🏦 Banks": len(r.banks),
+                "💳 Cards": len(r.credit_cards),
+                "🔐 PW": len(r.passwords),
+                "📊 Score": r.credit_score or "",
+                "🎯 Risk": r.risk_score,
+            })
         if rows:
             df = pd.DataFrame(rows)
             st.dataframe(df, use_container_width=True)
+
+        # Export
+        ec1, ec2, ec3 = st.columns(3)
+        with ec1:
+            csv_data = RouteAccountEngine.export_csv(batch)
+            st.download_button("📄 CSV", csv_data, "route_results.csv", "text/csv", use_container_width=True, key="dl_csv_batch")
+        with ec2:
+            json_data = RouteAccountEngine.export_json(batch)
+            st.download_button("📋 JSON", json_data, "route_results.json", "application/json", use_container_width=True, key="dl_json_batch")
+        with ec3:
+            txt_data = RouteAccountEngine.export_txt(batch)
+            st.download_button("📝 TXT", txt_data, "route_results.txt", "text/plain", use_container_width=True, key="dl_txt_batch")
 
 # ─── TAB 4: Credit Score ────────────────────────────────────
 
